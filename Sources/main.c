@@ -33,6 +33,7 @@
 #include "drv_gpio.h"
 #include "drv_lcd.h"
 #include "drv_kava.h"
+#include "drv_adc.h"
 
 /**
  * @brief Zakladni inicializace vsech pouzivanych periferii a ovladacu.
@@ -58,23 +59,32 @@ static void App_Init(void)
     /* 4. Inicializace rozhrani modelu misici jednotky (automat na kavu) */
     Kava_Init();
 
+    /* 5. Inicializace prevodniku ADC0 pro potenciometr */
+    ADC_Init();
+
     /* Uvodni obrazovka na LCD displeji */
     LCD_set_cursor(1, 1);
     LCD_puts("Automat na kavu");
     LCD_set_cursor(2, 1);
-    LCD_puts("SW1:SV1 SW2:SV2+SV3");
-    LCD_set_cursor(3, 1);
-    LCD_puts("SW3:SV4+MIX SW4:SV5");
+    LCD_puts("SW1:Kava SW2:Voda+Cuk");
 }
 
 /**
- * @brief Testovaci uloha pro overeni komunikace s MCU a modelem misici jednotky
- *        (podle kroku 4 v Projekt1_navod_r2.pdf).
- *        - Drzeni SW1: otevre SV1 (plni TANK1, dokud nedosahne H1)
- *        - Drzeni SW2: otevre SV2 a SV3 (plni TANK2 a TANK3, dokud nedosahnou H4/H6)
- *        - Drzeni SW3: otevre SV4 (vypousti TANK1-3 do MIXu) a zapne michadlo MIX
- *        - Drzeni SW4: otevre SV5 (vypousti MIX do kelimku)
- *        Na 4. radku LCD prubezne zobrazuje stavy hladinomeru H1 az H8.
+ * @brief Pomocna funkce pro formatovani 3-ciferneho cisla (0 az 255) do retezce.
+ */
+static void FormatDec3(uint8_t val, char *out)
+{
+    out[0] = (char)('0' + (val / 100U));
+    out[1] = (char)('0' + ((val / 10U) % 10U));
+    out[2] = (char)('0' + (val % 10U));
+}
+
+/**
+ * @brief Testovaci uloha pro overeni komunikace s MCU, potenciometrem a modelem.
+ *        - Radek 1: "Automat na kavu"
+ *        - Radek 2: "SW1:Kava SW2:Voda+Cuk"
+ *        - Radek 3: P0:xxx P1:yyy [### ] (hodnoty kanalu PTB0 a PTB1 a bar podle aktivniho)
+ *        - Radek 4: T1:xxx T2:xx T3:xxx (stavy hladinomeru)
  */
 static void Test_HardwareLoop(void)
 {
@@ -104,12 +114,41 @@ static void Test_HardwareLoop(void)
     /* Indikace stisku libovolneho tlacitka na LED LD1 */
     pinWrite(LD1, (sw1_pressed || sw2_pressed || sw3_pressed || sw4_pressed) ? HIGH : LOW);
 
-    /* Obnoveni stavu snimacu H1-H8 na 4. radku LCD kazdych 150 ms */
-    if ((now - last_lcd_ms) >= 150U) {
+    /* Obnoveni LCD kazdych 100 ms */
+    if ((now - last_lcd_ms) >= 100U) {
+        char radek3[21];
         char radek4[21];
         last_lcd_ms = now;
 
-        /* Format: "H1-3:000 45:00 6-8:000" (20 znaku: "T1:000 T2:00 T3:000 ") */
+        /* Precteme 8-bit hodnoty z PTB0 (kanál 8) i PTB1 (kanál 9) */
+        uint8_t val_ptb0 = (uint8_t)(ADC_ReadChannelRaw(ADC_CH_PTB0) >> 4);
+        uint8_t val_ptb1 = (uint8_t)(ADC_ReadChannelRaw(ADC_CH_PTB1) >> 4);
+
+        /* Zformátujeme řádek 3: "P0:xxx P1:yyy [## ]" */
+        radek3[0] = 'P';
+        radek3[1] = '0';
+        radek3[2] = ':';
+        FormatDec3(val_ptb0, &radek3[3]);
+        radek3[6] = ' ';
+        radek3[7] = 'P';
+        radek3[8] = '1';
+        radek3[9] = ':';
+        FormatDec3(val_ptb1, &radek3[10]);
+        radek3[13] = ' ';
+
+        /* Progress bar ze zvoleného potenciometru (6 znaku: "[####]") */
+        char bar[10];
+        uint8_t coffee_lvl = ADC_GetCoffeeLevel();
+        ADC_FormatProgressBar(coffee_lvl, 3, bar, 4);
+        for (uint8_t b = 0; b < 6; b++) {
+            radek3[14 + b] = bar[b];
+        }
+        radek3[20] = '\0';
+
+        LCD_set_cursor(3, 1);
+        LCD_puts(radek3);
+
+        /* Format radek 4: "T1:000 T2:00 T3:000 " */
         radek4[0]  = 'T';
         radek4[1]  = '1';
         radek4[2]  = ':';
@@ -129,7 +168,8 @@ static void Test_HardwareLoop(void)
         radek4[16] = Kava_CtiHladinu(HLADINA_H6) ? '1' : '0';
         radek4[17] = Kava_CtiHladinu(HLADINA_H7) ? '1' : '0';
         radek4[18] = Kava_CtiHladinu(HLADINA_H8) ? '1' : '0';
-        radek4[19] = '\0';
+        radek4[19] = ' ';
+        radek4[20] = '\0';
 
         LCD_set_cursor(4, 1);
         LCD_puts(radek4);
