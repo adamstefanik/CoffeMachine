@@ -1,0 +1,19 @@
+# Kinetis Design Studio / Eclipse build directories
+Debug/
+Release/
+
+# Compiled Object files & Binaries
+*.o
+*.d
+*.elf
+*.hex
+*.bin
+*.srec
+*.map
+*.lst
+*.a
+*.out
+
+# macOS system files
+.DS_Store
+._*

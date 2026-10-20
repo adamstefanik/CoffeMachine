@@ -29,18 +29,47 @@
  */
 
 #include "MKL25Z4.h"
+#include "drv_systick.h"
+#include "drv_gpio.h"
+#include "drv_lcd.h"
+#include "drv_kava.h"
 
-static int i = 0;
+/**
+ * @brief Zakladni inicializace vsech pouzivanych periferii a ovladacu.
+ */
+static void App_Init(void)
+{
+    /* 1. Inicializace casovace SysTick (1 ms tik pro neblokujici casovani) */
+    SYSTICK_initialize();
+
+    /* 2. Inicializace GPIO ovladace pro tlacitka SW1-SW4 a LED na kitu */
+    GPIO_Initialize();
+
+    /* 3. Inicializace a zapnuti podsviceni znakoveho LCD displeje (4x20) */
+    LCD_initialize();
+    LCD_backlight_on();
+    LCD_clear();
+
+    /* 4. Inicializace rozhrani modelu misici jednotky (automat na kavu) */
+    Kava_Init();
+
+    /* Uvodni obrazovka na LCD displeji */
+    LCD_set_cursor(1, 1);
+    LCD_puts("Automat na kavu");
+    LCD_set_cursor(2, 1);
+    LCD_puts("Inicializace OK");
+}
 
 int main(void)
 {
+    /* Inicializace systemu a periferii */
+    App_Init();
 
-    /* Write your code here */
-
-    /* This for loop should be replaced. By default this loop allows a single stepping. */
+    /* Hlavni nekonecna smycka programu */
     for (;;) {
-        i++;
+        /* Zde budou volany neblokujici ulohy (tasky) automatu */
     }
+
     /* Never leave main */
     return 0;
 }
