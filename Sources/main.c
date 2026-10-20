@@ -50,23 +50,24 @@ static void App_Init(void)
     pinMode(SW3, INPUT_PULLUP);
     pinMode(SW4, INPUT_PULLUP);
     pinMode(LD1, OUTPUT);
+    pinWrite(LD1, LOW);
 
-    /* 3. Inicializace a zapnuti podsviceni znakoveho LCD displeje (4x20) */
+    /* 3. Inicializace rozhrani modelu misici jednotky (automat na kavu) */
+    Kava_Init();
+
+    /* 4. Inicializace prevodniku ADC0 pro potenciometr */
+    ADC_Init();
+
+    /* 5. Inicializace a zapnuti podsviceni znakoveho LCD displeje (4x20) */
     LCD_initialize();
     LCD_backlight_on();
     LCD_clear();
 
-    /* 4. Inicializace rozhrani modelu misici jednotky (automat na kavu) */
-    Kava_Init();
-
-    /* 5. Inicializace prevodniku ADC0 pro potenciometr */
-    ADC_Init();
-
-    /* Uvodni obrazovka na LCD displeji */
+    /* Uvodni obrazovka na LCD displeji (kazdy radek max 20 znaku!) */
     LCD_set_cursor(1, 1);
     LCD_puts("Automat na kavu");
     LCD_set_cursor(2, 1);
-    LCD_puts("SW1:Kava SW2:Voda+Cuk");
+    LCD_puts("SW1:Kava SW2:Voda");
 }
 
 /**
@@ -82,8 +83,8 @@ static void FormatDec3(uint8_t val, char *out)
 /**
  * @brief Testovaci uloha pro overeni komunikace s MCU, potenciometrem a modelem.
  *        - Radek 1: "Automat na kavu"
- *        - Radek 2: "SW1:Kava SW2:Voda+Cuk"
- *        - Radek 3: P0:xxx P1:yyy [### ] (hodnoty kanalu PTB0 a PTB1 a bar podle aktivniho)
+ *        - Radek 2: "SW1:Kava SW2:Voda"
+ *        - Radek 3: P0:xxx P1:yyy [##  ] (hodnoty kanalu PTB0 a PTB1 a bar podle aktivniho)
  *        - Radek 4: T1:xxx T2:xx T3:xxx (stavy hladinomeru)
  */
 static void Test_HardwareLoop(void)
@@ -121,10 +122,10 @@ static void Test_HardwareLoop(void)
         last_lcd_ms = now;
 
         /* Precteme 8-bit hodnoty z PTB0 (kanál 8) i PTB1 (kanál 9) */
-        uint8_t val_ptb0 = (uint8_t)(ADC_ReadChannelRaw(ADC_CH_PTB0) >> 4);
-        uint8_t val_ptb1 = (uint8_t)(ADC_ReadChannelRaw(ADC_CH_PTB1) >> 4);
+        uint8_t val_ptb0 = (uint8_t)ADC_ReadChannelRaw(ADC_CH_PTB0);
+        uint8_t val_ptb1 = (uint8_t)ADC_ReadChannelRaw(ADC_CH_PTB1);
 
-        /* Zformátujeme řádek 3: "P0:xxx P1:yyy [## ]" */
+        /* Zformatujeme radek 3: "P0:xxx P1:yyy [##  ]" (presne 20 znaku) */
         radek3[0] = 'P';
         radek3[1] = '0';
         radek3[2] = ':';
@@ -136,7 +137,7 @@ static void Test_HardwareLoop(void)
         FormatDec3(val_ptb1, &radek3[10]);
         radek3[13] = ' ';
 
-        /* Progress bar ze zvoleného potenciometru (6 znaku: "[####]") */
+        /* Progress bar podle zvoleneho kanalu potenciometru (6 znaku: "[####]") */
         char bar[10];
         uint8_t coffee_lvl = ADC_GetCoffeeLevel();
         ADC_FormatProgressBar(coffee_lvl, 3, bar, 4);
@@ -148,7 +149,7 @@ static void Test_HardwareLoop(void)
         LCD_set_cursor(3, 1);
         LCD_puts(radek3);
 
-        /* Format radek 4: "T1:000 T2:00 T3:000 " */
+        /* Format radek 4: "T1:000 T2:00 T3:000 " (presne 20 znaku) */
         radek4[0]  = 'T';
         radek4[1]  = '1';
         radek4[2]  = ':';

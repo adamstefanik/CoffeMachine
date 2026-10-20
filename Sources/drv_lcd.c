@@ -227,10 +227,8 @@ void LCD_puts(const char* str)
 		LCD_putch(*str);
 		str++;
 		n++;
-		if (n > F_LCD_CHARS_MAX) {
-			// chyba: textovy retezec je prilis dlouhy nebo neni zakoncen nulou
-			while(1)
-				;
+		if (n >= F_LCD_CHARS_MAX) {
+			break;
 		}
 	}
 }

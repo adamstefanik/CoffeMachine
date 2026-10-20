@@ -12,29 +12,29 @@ static uint8_t g_adc_pot_channel = ADC_CH_PTB0;
 /* Inicializace prevodniku ADC0 */
 void ADC_Init(void)
 {
-    /* 1. Povoleni hodin pro ADC0 a prislusne porty B a C */
+    /* 1. Povoleni hodin pro ADC0 a porty B a C */
     SIM->SCGC6 |= SIM_SCGC6_ADC0_MASK;
     SIM->SCGC5 |= (SIM_SCGC5_PORTB_MASK | SIM_SCGC5_PORTC_MASK);
 
-    /* 2. Nastaveni analogove funkce pinu (MUX = 0 vypina digitalni vstupni buffer) */
-    PORTB->PCR[0] &= ~PORT_PCR_MUX_MASK; /* PTB0 (ADC0_SE8) */
-    PORTB->PCR[1] &= ~PORT_PCR_MUX_MASK; /* PTB1 (ADC0_SE9) */
+    /* 2. Nastaveni analogove funkce pinu PTB0 a PTB1 (MUX = 0) */
+    PORTB->PCR[0] &= ~PORT_PCR_MUX_MASK;
+    PORTB->PCR[1] &= ~PORT_PCR_MUX_MASK;
 
     /* 3. Konfigurace ADC0:
-     *    - 12-bitove rozliseni (MODE = 1)
-     *    - Hodinovy signal z Bus clock (ADICLK = 0)
-     *    - Preddelicka 2 (ADIV = 1)
-     *    - Dlouhy cas vzorkovani (ADLSMP = 1) pro stabilni mereni analogoveho vstupu
+     *    - 8-bitovy rezim (MODE = 0) pro bleskovy a stabilni prevod
+     *    - Hodiny ze sbernice Bus clock (ADICLK = 0)
+     *    - Preddelicka 4 (ADIV = 2)
+     *    - Dlouhy cas vzorkovani (ADLSMP = 1)
      */
-    ADC0->CFG1 = ADC_CFG1_MODE(1) |
-                 ADC_CFG1_ADIV(1) |
+    ADC0->CFG1 = ADC_CFG1_MODE(0) |
+                 ADC_CFG1_ADIV(2) |
                  ADC_CFG1_ADLSMP_MASK;
 
-    /* 4. Konfigurace softwaroveho spousteni (SC2 = 0) */
+    /* 4. Softwarove spousteni (SC2 = 0) */
     ADC0->SC2 = 0U;
 
-    /* 5. Zapnuti hardwaroveho prumerovani 16 vzorku pro eliminaci ruseni a kmitani hodnoty */
-    ADC0->SC3 = ADC_SC3_AVGE_MASK | ADC_SC3_AVGS(2);
+    /* 5. Vypnute hardwarove prumerovani pro okamzitou odezvu bez cekani */
+    ADC0->SC3 = 0U;
 }
 
 /* Nastaveni primarniho kanalu potenciometru */
@@ -49,27 +49,31 @@ uint8_t ADC_GetPotentiometerChannel(void)
     return g_adc_pot_channel;
 }
 
-/* Precte surovou hodnotu ze zadaneho kanalu ADC0 (12-bit: 0 az 4095) */
+/* Precte surovou hodnotu ze zadaneho kanalu ADC0 (8-bit: 0 az 255) s timeoutem */
 uint16_t ADC_ReadChannelRaw(uint8_t channel)
 {
-    /* Spusteni jednorazove konverze zapisem kanalu do SC1A */
+    /* Spusteni jednorazoveho prevodu na zadanem kanalu */
     ADC0->SC1[0] = ADC_SC1_ADCH(channel);
 
-    /* Cekani na dokonceni konverze (priznak COCO) */
-    while ((ADC0->SC1[0] & ADC_SC1_COCO_MASK) == 0U) {
-        /* Nekolika-mikrosekundove cekani na hardware ADC */
+    /* Ochrana proti zablokovani (timeout cyklus cca 5 ms) */
+    uint32_t timeout = 50000U;
+    while (((ADC0->SC1[0] & ADC_SC1_COCO_MASK) == 0U) && (timeout > 0U)) {
+        timeout--;
     }
 
-    /* Precteni a vraceni vysledku (ctenim registru R[0] se zaroven nuluje priznak COCO) */
+    /* Pokud doslo k timeoutu, vrat 0 */
+    if (timeout == 0U) {
+        return 0U;
+    }
+
+    /* Ctenim R[0] se zaroven vynuluje priznak COCO */
     return (uint16_t)(ADC0->R[0]);
 }
 
-/* Precte polohu potenciometru v rozsahu 0 az 255 (8-bit) */
+/* Precte polohu potenciometru v rozsahu 0 az 255 */
 uint8_t ADC_ReadPotentiometer8(void)
 {
-    uint16_t raw = ADC_ReadChannelRaw(g_adc_pot_channel);
-    /* Prevod 12-bit hodnoty (0 az 4095) na 8-bit (0 az 255) */
-    return (uint8_t)(raw >> 4);
+    return (uint8_t)ADC_ReadChannelRaw(g_adc_pot_channel);
 }
 
 /* Prepocita polohu potenciometru na uroven intenzity kavy (1 az 3: H3, H2, H1) */
