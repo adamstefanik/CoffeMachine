@@ -35,7 +35,7 @@ Tento dokument obsahuje zoznam úloh (Issues) pre vývoj embedded softvéru auto
 
 ---
 
-## Issue 1: Inicializácia repozitára, KDS projektu a базоvých ovládačov
+## Issue 1: Repository initialization, KDS project setup, and base drivers
 - **Labels:** `setup`, `high-priority`
 - **Priority:** High
 - **Description:**
@@ -49,7 +49,7 @@ Tento dokument obsahuje zoznam úloh (Issues) pre vývoj embedded softvéru auto
 
 ---
 
-## Issue 2: Implementácia ovládača modelu mísicí jednotky (`drv_kava.c` / `drv_kava.h`)
+## Issue 2: Implementation of mixing unit driver (drv_kava.c / drv_kava.h)
 - **Labels:** `driver`, `gpio`, `high-priority`
 - **Priority:** High (Hodnotenie: 2 body)
 - **Description:**
@@ -68,7 +68,7 @@ Tento dokument obsahuje zoznam úloh (Issues) pre vývoj embedded softvéru auto
 
 ---
 
-## Issue 3: Implementácia ovládača ADC pre potenciometer (`drv_adc.c` / `drv_adc.h`)
+## Issue 3: Implementation of ADC driver for potentiometer (drv_adc.c / drv_adc.h)
 - **Labels:** `driver`, `adc`, `high-priority`
 - **Priority:** High (Súčasť hodnotenia UI s potenciometrom: 2 body)
 - **Description:**
@@ -86,7 +86,7 @@ Tento dokument obsahuje zoznam úloh (Issues) pre vývoj embedded softvéru auto
 
 ---
 
-## Issue 4: Neblokujúca úloha pre obsluhu tlačidiel `SW1–SW4` (Task Buttons)
+## Issue 4: Non-blocking task for SW1–SW4 button handling (Task Buttons)
 - **Labels:** `feature`, `gpio`, `fsm`, `medium-priority`
 - **Priority:** High
 - **Description:**
@@ -100,7 +100,7 @@ Tento dokument obsahuje zoznam úloh (Issues) pre vývoj embedded softvéru auto
 
 ---
 
-## Issue 5: Používateľské rozhranie na LCD a sprievodca nastavením (Wizard s progress barmi)
+## Issue 5: LCD user interface and setup wizard (Wizard with progress bars)
 - **Labels:** `ui/lcd`, `feature`, `high-priority`
 - **Priority:** High (Hodnotenie: 2 body)
 - **Description:**
@@ -119,7 +119,7 @@ Tento dokument obsahuje zoznam úloh (Issues) pre vývoj embedded softvéru auto
 
 ---
 
-## Issue 6: Konečný automat (FSM) a implementácia 3 nápojových programov (Espresso, Lungo, Doppio)
+## Issue 6: Finite state machine (FSM) and implementation of 3 drink programs (Espresso, Lungo, Doppio)
 - **Labels:** `fsm`, `feature`, `high-priority`
 - **Priority:** High (Hodnotenie: 2 b za FSM + 2 b za 3 odlišné programy)
 - **Description:**
@@ -149,7 +149,7 @@ Tento dokument obsahuje zoznam úloh (Issues) pre vývoj embedded softvéru auto
 
 ---
 
-## Issue 7: Okamžité prerušenie programu (`STORNO`) a bezpečné vyprázdnenie modelu
+## Issue 7: Immediate program cancellation (STORNO) and safe draining of the unit
 - **Labels:** `safety`, `fsm`, `high-priority`
 - **Priority:** High (Hodnotenie: 2 body)
 - **Description:**
@@ -166,7 +166,7 @@ Tento dokument obsahuje zoznam úloh (Issues) pre vývoj embedded softvéru auto
 
 ---
 
-## Issue 8: Integrácia úloh v `main.c`, komentovanie kódu a testovanie na prípravku EDU-mod
+## Issue 8: Task integration in main.c, code commenting, and testing on EDU-mod fixture
 - **Labels:** `testing`, `documentation`, `medium-priority`
 - **Priority:** Medium
 - **Description:**
