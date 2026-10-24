@@ -1,5 +1,3 @@
-![C](https://img.shields.io/badge/C-C99-blue.svg) ![Platform](https://img.shields.io/badge/Platform-FRDM--KL25Z-orange.svg) ![Core](https://img.shields.io/badge/Core-ARM%20Cortex--M0+-lightgrey.svg) ![IDE](https://img.shields.io/badge/IDE-Kinetis%20Design%20Studio-green.svg) ![License](https://img.shields.io/badge/license-MIT-blue.svg)
-
 # Coffee Machine Controller
 
 An embedded firmware solution for an automated coffee machine running on the Freescale FRDM-KL25Z development board and the EDU-mod mixing unit. Features non-blocking cooperative multitasking, analog potentiometer configuration, an interactive LCD wizard, and fail-safe drainage mechanisms.
@@ -77,7 +75,3 @@ CoffeMachine/
 ├── plan.md                             # Issue tracking roadmap and task breakdown
 └── README.md
 ```
-
-## License
-
-Made with passion for embedded systems by <a href="https://github.com/adamstefanik">Adam Samuel Štefánik</a>.
