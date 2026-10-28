@@ -66,10 +66,11 @@ CoffeMachine/
 │   └── Startup_Code/                   # MCU startup and interrupt vector table
 ├── Sources/                            # Application and peripheral driver source files
 │   ├── drv_adc.c / .h                  # Potentiometer ADC0 driver and value scaling
-│   ├── drv_gpio.c / .h                 # GPIO configuration and button debounce logic
+│   ├── drv_gpio.c / .h                 # GPIO configuration for kit LEDs and buttons
 │   ├── drv_kava.c / .h                 # EDU-mod driver (valves SV1–SV5, mixer, sensors H1–H8)
 │   ├── drv_lcd.c / .h                  # 4x20 character LCD driver and progress bar rendering
 │   ├── drv_systick.c / .h              # 1 ms SysTick timer for non-blocking scheduling
+│   ├── task_buttons.c / .h             # Non-blocking debounced button task (SW1–SW4) and STORNO
 │   └── main.c                          # System initialization and cooperative run loop
 ├── zadani/                             # Project assignment documentation and schematics
 ├── plan.md                             # Issue tracking roadmap and task breakdown

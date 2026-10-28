@@ -34,6 +34,7 @@
 #include "drv_lcd.h"
 #include "drv_kava.h"
 #include "drv_adc.h"
+#include "task_buttons.h"
 
 /**
  * @brief Zakladni inicializace vsech pouzivanych periferii a ovladacu.
@@ -45,10 +46,7 @@ static void App_Init(void)
 
     /* 2. Inicializace GPIO ovladace pro tlacitka SW1-SW4 a LED na kitu */
     GPIO_Initialize();
-    pinMode(SW1, INPUT_PULLUP);
-    pinMode(SW2, INPUT_PULLUP);
-    pinMode(SW3, INPUT_PULLUP);
-    pinMode(SW4, INPUT_PULLUP);
+    Task_Buttons_Init(); /* Nakonfiguruje SW1-SW4 (INPUT_PULLUP) a pociatocny stav debouncingu */
     pinMode(LD1, OUTPUT);
     pinWrite(LD1, LOW);
 
@@ -92,11 +90,11 @@ static void Test_HardwareLoop(void)
     static uint32_t last_lcd_ms = 0U;
     uint32_t now = SYSTICK_millis();
 
-    /* Tlacitka na kitu jsou aktivni v log. 0 (stisknuto = LOW) */
-    bool sw1_pressed = (pinRead(SW1) == LOW);
-    bool sw2_pressed = (pinRead(SW2) == LOW);
-    bool sw3_pressed = (pinRead(SW3) == LOW);
-    bool sw4_pressed = (pinRead(SW4) == LOW);
+    /* Odfiltrovana stabilni tlacitka na kitu (debouncing z Task_Buttons) */
+    bool sw1_pressed = Task_Buttons_IsDown(BTN_SW1);
+    bool sw2_pressed = Task_Buttons_IsDown(BTN_SW2);
+    bool sw3_pressed = Task_Buttons_IsDown(BTN_SW3);
+    bool sw4_pressed = Task_Buttons_IsDown(BTN_SW4);
 
     /* SV1 (Kava - TANK1): otevreno pri drzeni SW1, ochrana proti preteceni nad H1 */
     Kava_NastavVentil(VENTIL_KAVA, sw1_pressed && !Kava_CtiHladinu(HLADINA_H1));
@@ -184,6 +182,10 @@ int main(void)
 
     /* Hlavni nekonecna smycka programu */
     for (;;) {
+        /* 1. Periodicka neblokujici obsluha a debouncing tlacitek (10 ms vzorkovani) */
+        Task_Buttons();
+
+        /* 2. Aktualni testovaci smycka hardware */
         Test_HardwareLoop();
     }
 

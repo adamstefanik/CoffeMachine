@@ -89,14 +89,15 @@ Tento dokument obsahuje zoznam úloh (Issues) pre vývoj embedded softvéru auto
 ## Issue 4: Non-blocking task for SW1–SW4 button handling (Task Buttons)
 - **Labels:** `feature`, `gpio`, `fsm`, `medium-priority`
 - **Priority:** High
+- **Status:** Dokončené (Implementované v `Sources/task_buttons.h` a `Sources/task_buttons.c`)
 - **Description:**
   Vytvoriť neblokujúcu úlohu (task) pre čítanie tlačidiel `SW1`, `SW2`, `SW3` a `SW4` s ošetrením zákmitov (debouncing) a detekciou nábežnej/falling hrany stlačenia, aby program reagoval okamžite a bez blokujúceho čakania.
 
   **Úlohy:**
-  - Nakonfigurovať piny tlačidiel `SW1` (`PTA4`), `SW2` (`PTA5`), `SW3` (`PTA16`) a `SW4` (`PTA17`) cez `pinMode(..., INPUT_PULLUP)` z `drv_gpio.h`.
-  - Implementovať periodickú neblokujúcu funkciu `Task_Buttons(void)` volanú pomocou `SYSTICK_millis()` (napr. každých 10–20 ms).
-  - Detegovať jednorazové stlačenie (zmenu stavu z uvoľneného na stlačené tlačidlo), aby držanie tlačidla nespôsobilo viacnásobné preskočenie krokov vo Wizarde.
-  - Pri stlačení tlačidla `SW4` nastaviť príznak okamžitého prerušenia / návratu (`STORNO`).
+  - [x] Nakonfigurovať piny tlačidiel `SW1` (`PTA4`), `SW2` (`PTA5`), `SW3` (`PTA16`) a `SW4` (`PTA17`) cez `pinMode(..., INPUT_PULLUP)` z `drv_gpio.h`.
+  - [x] Implementovať periodickú neblokujúcu funkciu `Task_Buttons(void)` volanú pomocou `SYSTICK_millis()` (vzorkovanie každých 10 ms, debounce filter 20 ms).
+  - [x] Detegovať jednorazové stlačenie (zmenu stavu z uvoľneného na stlačené tlačidlo cez `Task_Buttons_WasPressed()`), aby držanie tlačidla nespôsobilo viacnásobné preskočenie krokov vo Wizarde.
+  - [x] Pri stlačení tlačidla `SW4` nastaviť príznak okamžitého prerušenia / návratu (`STORNO` cez `Task_Buttons_IsStorno()` / `Task_Buttons_GetStorno()`).
 
 ---
 
