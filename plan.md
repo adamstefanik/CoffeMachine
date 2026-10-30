@@ -1,37 +1,37 @@
-# Projekt: Automat na kávu (EDU-mod Mísicí jednotka na FRDM-KL25Z) – GitHub Issues
+# Project: Coffee Machine Controller (EDU-mod Mixing Unit on FRDM-KL25Z) – GitHub Issues
 
-Tento dokument obsahuje zoznam úloh (Issues) pre vývoj embedded softvéru automatu na kávu na výukovom kite **Freescale FRDM-KL25Z** s pripojeným prípravkom **EDU-mod Mísicí jednotka** (predmet *AP5ES – Embedded systémy s mikropočítači*).
+This document contains the breakdown of tasks (Issues) for the embedded firmware development of the coffee machine on the **Freescale FRDM-KL25Z** development board with the attached **EDU-mod Mixing Unit** fixture (*AP5ES – Embedded Systems with Microcontrollers* course).
 
 ---
 
-## Prehľad hardvérového zapojenia (EDU-mod Mísicí jednotka)
+## Hardware Pin Mapping Overview (EDU-mod Mixing Unit)
 
-### Výstupy (Ovládané prvky – log. 1 = zapnuté/otvorené, log. 0 = vypnuté/zatvorené)
-| Prvok modelu | Funkcia v kávovare | Pin MCU |
+### Outputs (Actuators – logic 1 = ON/open, logic 0 = OFF/closed)
+| Actuator | Function in Coffee Machine | MCU Pin |
 |---|---|---|
-| **Ventil SV1** | Napúšťanie `TANK1` (Kávový koncentrát / Espresso základ) | `PTE5` |
-| **Ventil SV2** | Napúšťanie `TANK2` (Horúca voda pre Lungo) | `PTC1` |
-| **Ventil SV3** | Napúšťanie `TANK3` (Cukor) | `PTE4` |
-| **Ventil SV4** | Vypúšťanie nádrží `TANK1–TANK3` do miešacej nádoby `MIX` | `PTE0` |
-| **Ventil SV5** | Vypúšťanie miešacej nádoby `MIX` do pohára (výdaj nápoja) | `PTE1` |
-| **Míchadlo MIX** | Miešanie nápoja v nádobe `MIX` | `PTD0` |
+| **Valve SV1** | Fill `TANK1` (Coffee concentrate / Espresso base) | `PTE5` |
+| **Valve SV2** | Fill `TANK2` (Hot water for Lungo) | `PTC1` |
+| **Valve SV3** | Fill `TANK3` (Sugar) | `PTE4` |
+| **Valve SV4** | Drain reservoirs `TANK1–TANK3` into mixing chamber `MIX` | `PTE0` |
+| **Valve SV5** | Dispense mixing chamber `MIX` into cup | `PTE1` |
+| **Stirrer MIX** | Stir beverage inside mixing chamber `MIX` | `PTD0` |
 
-### Vstupy (Hladinomery – log. 1 = hladina dosiahla snímač, log. 0 = pod snímačom)
-| Nádrž | Snímač | Význam hladiny | Pin MCU |
+### Inputs (Level Sensors – logic 1 = liquid reached sensor, logic 0 = below sensor)
+| Tank | Sensor | Level Meaning | MCU Pin |
 |---|---|---|---|
-| **TANK1 (Káva)** | `H1` | Horný snímač – silná káva (plná nádrž) | `PTD3` |
-| **TANK1 (Káva)** | `H2` | Stredný snímač – stredná káva (polovica nádrže) | `PTC16` |
-| **TANK1 (Káva)** | `H3` | Dolný snímač – slabá káva (minimum) | `PTD2` |
-| **TANK2 (Voda)** | `H4` | Horný snímač – vysoká hladina vody (plná nádrž) | `PTC5` |
-| **TANK2 (Voda)** | `H5` | Dolný snímač – nízka hladina vody (minimum) | `PTD4` |
-| **TANK3 (Cukor)** | `H6` | Horný snímač – veľa cukru (plná nádrž) | `PTC7` |
-| **TANK3 (Cukor)** | `H7` | Stredný snímač – stredne cukru (polovica nádrže) | `PTD5` |
-| **TANK3 (Cukor)** | `H8` | Dolný snímač – málo cukru (minimum) | `PTC6` |
+| **TANK1 (Coffee)** | `H1` | Upper sensor – strong coffee (full tank) | `PTD3` |
+| **TANK1 (Coffee)** | `H2` | Middle sensor – medium coffee (half tank) | `PTC16` |
+| **TANK1 (Coffee)** | `H3` | Lower sensor – mild coffee (minimum) | `PTD2` |
+| **TANK2 (Water)** | `H4` | Upper sensor – high water level (full tank) | `PTC5` |
+| **TANK2 (Water)** | `H5` | Lower sensor – low water level (minimum) | `PTD4` |
+| **TANK3 (Sugar)** | `H6` | Upper sensor – high sugar level (full tank) | `PTC7` |
+| **TANK3 (Sugar)** | `H7` | Middle sensor – medium sugar level (half tank) | `PTD5` |
+| **TANK3 (Sugar)** | `H8` | Lower sensor – low sugar level (minimum) | `PTC6` |
 
-### Periférie výukového kitu FRDM-KL25Z
-- **Tlačidlá:** `SW1` (`PTA4`), `SW2` (`PTA5`), `SW3` (`PTA16`), `SW4` (`PTA17`)
-- **Potenciometer:** Analógový vstup na `ADC0` (`PTB0` / `PTB1` podľa zapojenia kitu)
-- **LCD Displej (4×20 znakov):** `PTC8–PTC13`, `PTA12–PTA13` (`drv_lcd.c/.h`)
+### FRDM-KL25Z On-Board Peripherals
+- **Push Buttons:** `SW1` (`PTA4`), `SW2` (`PTA5`), `SW3` (`PTA16`), `SW4` (`PTA17`)
+- **Potentiometer:** Analog input on `ADC0` (`PTB0` / `PTB1` depending on board jumper)
+- **LCD Display (4×20 characters):** `PTC8–PTC13`, `PTA12–PTA13` (`drv_lcd.c/.h`)
 
 ---
 
@@ -39,131 +39,130 @@ Tento dokument obsahuje zoznam úloh (Issues) pre vývoj embedded softvéru auto
 - **Labels:** `setup`, `high-priority`
 - **Priority:** High
 - **Description:**
-  Pripraviť štruktúru projektu pre Kinetis Design Studio (KDS) a nastaviť `.gitignore`, aby bolo možné projekt bez problémov skompilovať, ladiť na kite FRDM-KL25Z a verzovať v Gite.
+  Prepare the project structure for Kinetis Design Studio (KDS) and configure `.gitignore` so the project can be seamlessly compiled, debugged on the **FRDM-KL25Z** board, and versioned in Git.
 
-  **Úlohy:**
-  - Obnoviť a skontrolovať projektové súbory pre Kinetis Design Studio (`.project`, `.cproject`, `.settings/`, `Project_Settings/`).
-  - Vytvoriť `.gitignore` pre build artefakty (`Debug/`, `Release/`, `.DS_Store`).
-  - Overiť funkčnosť poskytnutých bázových ovládačov v `Sources/` (`drv_gpio.c/.h`, `drv_lcd.c/.h`, `drv_systick.c/.h`).
-  - V `main.c` doplniť základnú inicializáciu systémových časovačov a periférií (`SYSTICK_initialize()`, `GPIO_Initialize()`, `LCD_initialize()`, `LCD_backlight_on()`).
+  **Tasks:**
+  - [ ] Restore and verify project configuration files for Kinetis Design Studio (`.project`, `.cproject`, `.settings/`, `Project_Settings/`).
+  - [ ] Create `.gitignore` for build artifacts (`Debug/`, `Release/`, `.DS_Store`).
+  - [ ] Verify the functionality of provided base drivers in `Sources/` (`drv_gpio.c/.h`, `drv_lcd.c/.h`, `drv_systick.c/.h`).
+  - [ ] In `main.c`, add basic initialization of system timers and peripherals (`SYSTICK_initialize()`, `GPIO_Initialize()`, `LCD_initialize()`, `LCD_backlight_on()`).
 
 ---
 
 ## Issue 2: Implementation of mixing unit driver (drv_kava.c / drv_kava.h)
 - **Labels:** `driver`, `gpio`, `high-priority`
-- **Priority:** High (Hodnotenie: 2 body)
+- **Priority:** High (Assignment grading: 2 points)
 - **Description:**
-  Vytvoriť plne funkčný hardvérový ovládač v súboroch `Sources/drv_kava.h` a `Sources/drv_kava.c` na úrovni registrov (`PORTx->PCR`, `PTx->PDDR`, `PTx->PSOR`, `PTx->PCOR`, `PTx->PDIR`) pre všetky ventily `SV1–SV5`, miešadlo `MIX` a hladinomery `H1–H8`.
+  Create a fully functional hardware driver in `Sources/drv_kava.h` and `Sources/drv_kava.c` at the register level (`PORTx->PCR`, `PTx->PDDR`, `PTx->PSOR`, `PTx->PCOR`, `PTx->PDIR`) for all valves `SV1–SV5`, mixer `MIX`, and level sensors `H1–H8`.
 
-  **Úlohy:**
-  - V `drv_kava.h` opraviť a dodefinovať konštanty/enumy pre ventily (`VENTIL_KAVA` / `SV1` až `VENTIL_VYPUST` / `SV5`) a hladinomery (`HLADINA_H1` až `HLADINA_H8`) a doplniť ukončovací `#endif`.
-  - Implementovať `void Kava_Init(void)`:
-    - Povoliť hodinový signál pre porty B, C, D, E v registri `SIM->SCGC5`.
-    - Nastaviť `PORT_PCR_MUX(1)` (GPIO režim) pre výstupy (`PTE5`, `PTC1`, `PTE4`, `PTE0`, `PTE1`, `PTD0`) a vstupy (`PTD3`, `PTC16`, `PTD2`, `PTC5`, `PTD4`, `PTC7`, `PTD5`, `PTC6`).
-    - Nastaviť smer pinov v `PDDR` (výstupy na `1`, vstupy na `0`) a na začiatku bezpečne vypnúť všetky ventily a miešadlo (`PCOR`).
-  - Implementovať `void Kava_NastavVentil(uint8_t ventil, bool otevrit)` pre otváranie (`true`) a zatváranie (`false`) ventilov `SV1–SV5`.
-  - Implementovať `void Kava_NastavMichadlo(bool zapnout)` pre zapnutie/vypnutie miešadla na pine `PTD0`.
-  - Implementovať `bool Kava_CtiHladinu(uint8_t hladinomer)` pre čítanie stavu snímačov `H1–H8` (vracia `true`, ak je na príslušnom pine log. 1).
-  - Pridať pomocnú funkciu `void Kava_VypniVse(void)` na okamžité uzavretie všetkých ventilov a vypnutie miešadla.
+  **Tasks:**
+  - [ ] In `drv_kava.h`, fix and define constants/enums for valves (`VENTIL_KAVA` / `SV1` to `VENTIL_VYPUST` / `SV5`) and level sensors (`HLADINA_H1` to `HLADINA_H8`) and add missing terminating `#endif`.
+  - [ ] Implement `void Kava_Init(void)`:
+    - Enable clock gating for ports B, C, D, E in register `SIM->SCGC5`.
+    - Configure `PORT_PCR_MUX(1)` (GPIO mode) for all model outputs and inputs.
+    - Set pin directions in `PDDR` (outputs to `1`, inputs to `0`) and safely close all valves and stop mixer initially (`PCOR`).
+  - [ ] Implement `void Kava_NastavVentil(uint8_t ventil, bool otevrit)` to open (`true`) and close (`false`) valves `SV1–SV5`.
+  - [ ] Implement `void Kava_NastavMichadlo(bool zapnout)` to enable/disable the mixer motor on pin `PTD0`.
+  - [ ] Implement `bool Kava_CtiHladinu(uint8_t hladinomer)` to read the state of sensors `H1–H8`.
+  - [ ] Add helper function `void Kava_VypniVse(void)` to immediately close all valves and stop the mixer.
 
 ---
 
 ## Issue 3: Implementation of ADC driver for potentiometer (drv_adc.c / drv_adc.h)
 - **Labels:** `driver`, `adc`, `high-priority`
-- **Priority:** High (Súčasť hodnotenia UI s potenciometrom: 2 body)
+- **Priority:** High (Part of UI grading with potentiometer: 2 points)
 - **Description:**
-  Vytvoriť samostatný modul `Sources/drv_adc.h` a `Sources/drv_adc.c` pre čítanie polohy potenciometra na výukovom kite pomocou prevodníka `ADC0` a mapovanie nameranej hodnoty na diskrétne úrovne intenzity kávy a cukru.
+  Create a dedicated module `Sources/drv_adc.h` and `Sources/drv_adc.c` for reading the potentiometer position on the development board using converter `ADC0` and mapping the sampled value to discrete levels of coffee strength and sugar intensity.
 
-  **Úlohy:**
-  - Vytvoriť `drv_adc.h` a `drv_adc.c`.
-  - Implementovať `void ADC_Init(void)`:
-    - Povoliť hodiny pre `ADC0` (`SIM->SCGC6 |= SIM_SCGC6_ADC0_MASK`) a príslušný port potenciometra.
-    - Nakonfigurovať `ADC0->CFG1` (napr. 8-bitové alebo 12-bitové rozlíšenie, delička hodín) a `ADC0->SC3` (hardvérové priemerovanie pre stabilitu hodnoty bez kmitania).
-  - Implementovať `uint16_t ADC_ReadRaw(void)` pre spustenie konverzie na kanáli potenciometra, čakanie na príznak `COCO` a vrátenie výsledku z `ADC0->R[0]`.
-  - Implementovať pomocné funkcie na prepočet hodnoty potenciometra:
-    - Úroveň intenzity kávy (1 až 3 $\rightarrow$ zodpovedá snímačom `H3`, `H2`, `H1`).
-    - Úroveň intenzity cukru (0 až 3 $\rightarrow$ `0 = bez cukru`, `1 = H8`, `2 = H7`, `3 = H6`) + prepočet na počet dielikov progress baru na LCD.
+  **Tasks:**
+  - [ ] Create `drv_adc.h` and `drv_adc.c`.
+  - [ ] Implement `void ADC_Init(void)`:
+    - Enable clock gating for `ADC0` (`SIM->SCGC6 |= SIM_SCGC6_ADC0_MASK`) and the corresponding potentiometer port.
+    - Configure `ADC0->CFG1` (e.g. 8-bit or 12-bit resolution, clock divider) and `ADC0->SC3` (hardware averaging for stable values without jitter).
+  - [ ] Implement `uint16_t ADC_ReadRaw(void)` to trigger conversion on potentiometer channel, poll for `COCO` flag, and return result from `ADC0->R[0]`.
+  - [ ] Implement helper functions for potentiometer value scaling:
+    - Coffee strength level (1 to 3 -> corresponds to sensors `H3`, `H2`, `H1`).
+    - Sugar intensity level (0 to 3 -> `0 = No sugar`, `1 = H8`, `2 = H7`, `3 = H6`) + conversion to progress bar segments on LCD.
 
 ---
 
 ## Issue 4: Non-blocking task for SW1–SW4 button handling (Task Buttons)
 - **Labels:** `feature`, `gpio`, `fsm`, `medium-priority`
 - **Priority:** High
-- **Status:** Dokončené (Implementované v `Sources/task_buttons.h` a `Sources/task_buttons.c`)
 - **Description:**
-  Vytvoriť neblokujúcu úlohu (task) pre čítanie tlačidiel `SW1`, `SW2`, `SW3` a `SW4` s ošetrením zákmitov (debouncing) a detekciou nábežnej/falling hrany stlačenia, aby program reagoval okamžite a bez blokujúceho čakania.
+  Create a non-blocking task for reading push buttons `SW1`, `SW2`, `SW3`, and `SW4` with software debouncing and edge detection (rising/falling edge), allowing the application to respond immediately without blocking delays.
 
-  **Úlohy:**
-  - [x] Nakonfigurovať piny tlačidiel `SW1` (`PTA4`), `SW2` (`PTA5`), `SW3` (`PTA16`) a `SW4` (`PTA17`) cez `pinMode(..., INPUT_PULLUP)` z `drv_gpio.h`.
-  - [x] Implementovať periodickú neblokujúcu funkciu `Task_Buttons(void)` volanú pomocou `SYSTICK_millis()` (vzorkovanie každých 10 ms, debounce filter 20 ms).
-  - [x] Detegovať jednorazové stlačenie (zmenu stavu z uvoľneného na stlačené tlačidlo cez `Task_Buttons_WasPressed()`), aby držanie tlačidla nespôsobilo viacnásobné preskočenie krokov vo Wizarde.
-  - [x] Pri stlačení tlačidla `SW4` nastaviť príznak okamžitého prerušenia / návratu (`STORNO` cez `Task_Buttons_IsStorno()` / `Task_Buttons_GetStorno()`).
+  **Tasks:**
+  - [x] Configure button pins `SW1` (`PTA4`), `SW2` (`PTA5`), `SW3` (`PTA16`), and `SW4` (`PTA17`) via `pinMode(..., INPUT_PULLUP)` from `drv_gpio.h`.
+  - [x] Implement periodic non-blocking function `Task_Buttons(void)` invoked via `SYSTICK_millis()` (e.g. every 10–20 ms).
+  - [x] Detect single-press events (transition from released to pressed) so that holding a button does not cause unwanted step skips in the Wizard.
+  - [x] On `SW4` press, trigger immediate cancellation / return flag (`STORNO`).
 
 ---
 
 ## Issue 5: LCD user interface and setup wizard (Wizard with progress bars)
 - **Labels:** `ui/lcd`, `feature`, `high-priority`
-- **Priority:** High (Hodnotenie: 2 body)
+- **Priority:** High (Assignment grading: 2 points)
 - **Description:**
-  Implementovať prehľadné používateľské rozhranie na 4×20 LCD displeji vrátane sprievodcu (Wizardu) pred spustením prípravy nápoja, kde si používateľ potenciometrom nastaví intenzitu kávy a intenzitu cukru zobrazenú pomocou grafického progress baru.
+  Implement a clear user interface on the 4x20 character LCD, including an interactive setup wizard prior to beverage preparation, allowing the user to configure coffee strength and sugar level with the potentiometer and visualized via graphical progress bars.
 
-  **Úlohy:**
-  - Navrhnúť vykresľovanie 4 riadkov LCD displeja bez zbytočného blikania (obnovovať pri zmene stavu alebo periodicky každých ~100–150 ms).
-  - Implementovať obrazovky Wizardu:
-    1. **Výber nápoja (`STATE_IDLE`):**
-       - Zobrazenie ponuky: `SW1: Espresso`, `SW2: Lungo`, `SW3: Doppio`.
-    2. **Nastavenie intenzity kávy (`STATE_WIZARD_COFFEE`):**
-       - Zobrazenie vybraného nápoja, grafického baru intenzity kávy podľa potenciometra (napr. `[###   ] Stredna (H2)`) a pokynu na potvrdenie (`SW1-3: OK`, `SW4: Zpet`).
-    3. **Nastavenie intenzity cukru (`STATE_WIZARD_SUGAR`):**
-       - Zobrazenie grafického baru cukru podľa potenciometra (`0 = Bez cukru`, `1 = Malo (H8)`, `2 = Stredne (H7)`, `3 = Vela (H6)`) a potvrdenie štartu prípravy (`SW1-3: START`, `SW4: Storno`).
-  - Implementovať stavové obrazovky počas prípravy nápoja (aktuálna fáza: plnenie kávy/vody/cukru, vypúšťanie do mixéra, odpočet času miešania, čapovanie do pohára, prípadne stav `STORNO`).
+  **Tasks:**
+  - [x] Design non-flickering 4-line LCD rendering (refresh on state changes or periodically every ~100–150 ms).
+  - [x] Implement Wizard screens:
+    1. **Drink Selection (`STATE_IDLE`):**
+       - Display options: `SW1: Espresso`, `SW2: Lungo`, `SW3: Doppio`.
+    2. **Coffee Strength Adjustment (`STATE_WIZARD_COFFEE`):**
+       - Display selected beverage, graphical coffee strength bar based on potentiometer (e.g. `[###   ] Medium (H2)`), and confirmation prompts (`SW1-3: OK`, `SW4: Back`).
+    3. **Sugar Level Adjustment (`STATE_WIZARD_SUGAR`):**
+       - Display graphical sugar bar based on potentiometer (`0 = No sugar`, `1 = Low (H8)`, `2 = Medium (H7)`, `3 = High (H6)`), and start confirmation (`SW1-3: START`, `SW4: Cancel`).
+  - [x] Implement active preparation status screens (current phase: filling coffee/water/sugar, draining to mixer, mixing countdown, dispensing to cup, and `STORNO` status).
 
 ---
 
 ## Issue 6: Finite state machine (FSM) and implementation of 3 drink programs (Espresso, Lungo, Doppio)
 - **Labels:** `fsm`, `feature`, `high-priority`
-- **Priority:** High (Hodnotenie: 2 b za FSM + 2 b za 3 odlišné programy)
+- **Priority:** High (Assignment grading: 2 pts for FSM + 2 pts for 3 distinct beverage programs)
 - **Description:**
-  Navrhnúť a implementovať hlavný neblokujúci konečný automat (`Task_CoffeeMachine`) s 3 nápojovými programami, ktoré majú odlišnú riadiacu sekvenciu.
+  Design and implement the main non-blocking finite state machine (`Task_CoffeeMachine`) with 3 distinct beverage programs, each following a specific control sequence.
 
-  **Úlohy:**
-  - Definovať výčtový typ stavov automatu (`CoffeeState_t`) a štruktúru kontextu objednávky (zvolený nápoj, cieľový snímač kávy `H3/H2/H1`, cieľový snímač cukru `0/H8/H7/H6`, počítadlo cyklov pre Doppio, časovače pre `SYSTICK_millis()`).
-  - Implementovať **Program 1 – Espresso (bez `TANK2`):**
-    1. Napustenie kávy `TANK1` (`SV1`) po zvolenú hladinu (`H3`, `H2` alebo `H1`).
-    2. Ak je zvolený cukor ($>0$), napustenie cukru `TANK3` (`SV3`) po zvolenú hladinu (`H8`, `H7` alebo `H6`).
-    3. Vypustenie surovín do miešacej nádoby (`SV4`) – čakanie na `H3 == 0 && H8 == 0` + časový presah (napr. 3 s).
-    4. Miešanie v nádobe `MIX` po dobu 3 s.
-    5. Výdaj nápoja do pohára (`SV5`) po dobu zodpovedajúcu objemu + návrat do `STATE_IDLE`.
-  - Implementovať **Program 2 – Lungo (s horúcou vodou `TANK2` na `H4`):**
-    1. Napustenie kávy `TANK1` (`SV1`) po zvolenú hladinu (`H3/H2/H1`).
-    2. Napustenie horúcej vody `TANK2` (`SV2`) na vysokú hladinu `H4`.
-    3. Ak je zvolený cukor ($>0$), napustenie cukru `TANK3` (`SV3`) po zvolenú hladinu (`H8/H7/H6`).
-    4. Vypustenie všetkých nádrží do mixéra (`SV4`) – čakanie na `H3 == 0 && H5 == 0 && H8 == 0` + časový presah.
-    5. Miešanie v nádobe `MIX` po dobu 5 s.
-    6. Výdaj nápoja do pohára (`SV5`) + návrat do `STATE_IDLE`.
-  - Implementovať **Program 3 – Doppio (2× cyklus kávy z `TANK1`, bez `TANK2`):**
-    1. **1. cyklus kávy:** Napustenie `TANK1` (`SV1`) po zvolenú hladinu (`H3/H2/H1`) a prečerpanie cez `SV4` do mixéra.
-    2. **2. cyklus kávy + cukor:** Opätovné napustenie `TANK1` (`SV1`) po zvolenú hladinu + napustenie cukru `TANK3` (`SV3`, ak $>0$) a prečerpanie cez `SV4` do mixéra (čakanie na `H3 == 0 && H8 == 0` + časový presah).
-    3. Miešanie dvojitej dávky v nádobe `MIX` po dobu 6 s.
-    4. Výdaj nápoja do pohára (`SV5`) + návrat do `STATE_IDLE`.
-  - Zabezpečiť, aby v žiadnom stave nebolo použité blokujúce čakanie (`while` / `SYSTICK_delay_ms`).
+  **Tasks:**
+  - [ ] Define state enum (`CoffeeState_t`) and order context structure (selected drink, target coffee sensor `H3/H2/H1`, target sugar sensor `0/H8/H7/H6`, cycle counter for Doppio, timestamps for `SYSTICK_millis()`).
+  - [ ] Implement **Program 1 – Espresso (without `TANK2`):**
+    1. Fill coffee `TANK1` (`SV1`) up to target sensor (`H3`, `H2`, or `H1`).
+    2. If sugar selected (`> 0`), fill sugar `TANK3` (`SV3`) up to target sensor (`H8`, `H7`, or `H6`).
+    3. Drain ingredients into mixing chamber (`SV4`) – wait for `H3 == 0 && H8 == 0` + drain grace period (e.g. 3 s).
+    4. Stir in mixing chamber `MIX` for 3 s.
+    5. Dispense drink into cup (`SV5`) for volume-equivalent duration + transition back to `STATE_IDLE`.
+  - [ ] Implement **Program 2 – Lungo (with hot water `TANK2` up to `H4`):**
+    1. Fill coffee `TANK1` (`SV1`) up to target sensor (`H3/H2/H1`).
+    2. Fill hot water `TANK2` (`SV2`) up to high level `H4`.
+    3. If sugar selected (`> 0`), fill sugar `TANK3` (`SV3`) up to target sensor (`H8/H7/H6`).
+    4. Drain all reservoirs into mixing chamber (`SV4`) – wait for `H3 == 0 && H5 == 0 && H8 == 0` + grace period.
+    5. Stir in mixing chamber `MIX` for 5 s.
+    6. Dispense drink into cup (`SV5`) + transition back to `STATE_IDLE`.
+  - [ ] Implement **Program 3 – Doppio (2x coffee cycle from `TANK1`, without `TANK2`):**
+    1. **Cycle 1 (Coffee):** Fill `TANK1` (`SV1`) to target sensor (`H3/H2/H1`) and transfer via `SV4` to mixer.
+    2. **Cycle 2 (Coffee + Sugar):** Fill `TANK1` (`SV1`) to target sensor again + fill sugar `TANK3` (`SV3`, if `> 0`), and transfer via `SV4` to mixer (wait for `H3 == 0 && H8 == 0` + grace period).
+    3. Stir double batch in mixing chamber `MIX` for 6 s.
+    4. Dispense drink into cup (`SV5`) + transition back to `STATE_IDLE`.
+  - [ ] Ensure no blocking calls (`while` loops / `SYSTICK_delay_ms`) are used in any state.
 
 ---
 
 ## Issue 7: Immediate program cancellation (STORNO) and safe draining of the unit
 - **Labels:** `safety`, `fsm`, `high-priority`
-- **Priority:** High (Hodnotenie: 2 body)
+- **Priority:** High (Assignment grading: 2 points)
 - **Description:**
-  Zabezpečiť okamžitú odozvu na stlačenie tlačidla `SW4` (STORNO) v ľubovoľnom okamihu behu programu a korektné ukončenie riadenia modelu tak, aby v nádržiach ani v mixéri nezostala kvapalina.
+  Ensure immediate system response to `SW4` (`STORNO`) button press at any moment during execution and implement a clean, fail-safe shutdown routine leaving zero liquid inside reservoirs or mixing chamber.
 
-  **Úlohy:**
-  - Ak používateľ stlačí `SW4` počas nastavovania vo Wizarde (ešte pred otvorením ventilov), okamžite zrušiť voľbu a vrátiť automat do `STATE_IDLE`.
-  - Ak používateľ stlačí `SW4` počas ktorejkoľvek fázy prípravy nápoja:
-    1. Okamžite zatvoriť napúšťacie ventily `SV1`, `SV2`, `SV3` a vypnúť miešadlo `MIX`.
-    2. Prepnúť automat do stavu `STATE_STORNO_DRAIN_TANKS` a zobraziť na LCD upozornenie `!! STORNO !! Vypoustim nadrze...`.
-    3. Otvoriť ventil `SV4`, počkať kým `H3 == 0 && H5 == 0 && H8 == 0` a pridať časový presah (napr. 3 s), potom `SV4` zatvoriť.
-    4. Prepnúť do stavu `STATE_STORNO_DRAIN_MIX`, otvoriť výpustný ventil `SV5` na bezpečný čas vyprázdnenia mixéra (napr. 6–8 s) a následne `SV5` zatvoriť.
-    5. Vrátiť automat do východiskového stavu `STATE_IDLE`.
+  **Tasks:**
+  - [ ] If user presses `SW4` during setup in Wizard (prior to opening any valves), immediately cancel selection and return to `STATE_IDLE`.
+  - [ ] If user presses `SW4` during any phase of beverage preparation:
+    1. Immediately close supply valves `SV1`, `SV2`, `SV3` and stop mixer `MIX`.
+    2. Transition FSM to `STATE_STORNO_DRAIN_TANKS` and display alert on LCD: `!! STORNO !! Draining tanks...`.
+    3. Open valve `SV4`, wait until `H3 == 0 && H5 == 0 && H8 == 0`, append grace period (e.g. 3 s), then close `SV4`.
+    4. Transition to `STATE_STORNO_DRAIN_MIX`, open dispense valve `SV5` for safe emptying duration (e.g. 6–8 s), then close `SV5`.
+    5. Return FSM to default state `STATE_IDLE`.
 
 ---
 
@@ -171,9 +170,9 @@ Tento dokument obsahuje zoznam úloh (Issues) pre vývoj embedded softvéru auto
 - **Labels:** `testing`, `documentation`, `medium-priority`
 - **Priority:** Medium
 - **Description:**
-  Prepojiť všetky moduly a neblokujúce úlohy v hlavnej slučke `main.c`, doplniť prehľadné komentáre k funkciám a stavom automatu a otestovať hraničné situácie na reálnom modeli.
+  Integrate all peripheral modules and non-blocking tasks into the main loop of `main.c`, document functions and FSM states with clean comments, and test edge cases on the physical hardware fixture.
 
-  **Úlohy:**
-  - V `main.c` zostaviť hlavnú nekonečnú slučku `for (;;)` volajúcu jednotlivé neblokujúce úlohy (`Task_Buttons()`, `Task_Potentiometer()`, `Task_CoffeeMachine()`, `Task_Display()`).
-  - Otestovať na prípravku EDU-mod časové presahy pri vypúšťaní `SV4` a `SV5`, aby nedochádzalo k rozsvieteniu chybovej LED `ERR` (pretečeniu nádrže alebo mixéra).
-  - Skontrolovať čitateľnosť kódu, hlavičkové komentáre a dokumentáciu podľa požiadaviek zadania.
+  **Tasks:**
+  - [ ] In `main.c`, construct the main infinite loop `for (;;)` dispatching non-blocking tasks (`Task_Buttons()`, `Task_Potentiometer()`, `Task_CoffeeMachine()`, `Task_Display()`).
+  - [ ] Test drain timing grace periods for `SV4` and `SV5` on the EDU-mod fixture to prevent `ERR` fault LED activation (overflow in reservoir or mixer).
+  - [ ] Review code readability, function header comments, and documentation according to assignment requirements.
