@@ -18,6 +18,10 @@
 #define STIR_TIME_ESPRESSO_MS       (3000U) /* 3 s stirring in mixer */
 #define DISPENSE_TIME_ESPRESSO_MS   (5000U) /* 5 s dispensing into cup */
 
+/* Program 2: Lungo parameters */
+#define STIR_TIME_LUNGO_MS          (5000U) /* 5 s stirring for larger volume */
+#define DISPENSE_TIME_LUNGO_MS      (7000U) /* 7 s dispensing full cup volume */
+
 static CoffeeState_t s_state = STATE_IDLE;
 static CoffeeMachineContext_t s_ctx;
 
@@ -288,16 +292,89 @@ void Task_CoffeeMachine(void)
         break;
 
     /* -------------------------------------------------------------
-     * PROGRAM 2: LUNGO CONTROL SEQUENCE (to be finalized in Part 2)
+     * PROGRAM 2: LUNGO CONTROL SEQUENCE (with hot water TANK2 up to H4)
      * ------------------------------------------------------------- */
-    case STATE_LUNGO_FILL_COFFEE:
+    case STATE_LUNGO_FILL_COFFEE: {
+        /* Target sensor based on coffee strength: H3=Mild, H2=Medium, H1=Strong */
+        uint8_t target_sensor = HLADINA_H2;
+        if (s_ctx.coffee_level == COFFEE_LVL_MILD) {
+            target_sensor = HLADINA_H3;
+        } else if (s_ctx.coffee_level == COFFEE_LVL_STRONG) {
+            target_sensor = HLADINA_H1;
+        }
+
+        /* Wait for target sensor or H1 overflow safety */
+        if (Kava_CtiHladinu(target_sensor) || Kava_CtiHladinu(HLADINA_H1)) {
+            Kava_NastavVentil(VENTIL_KAVA, false);
+            CoffeeMachine_SetState(STATE_LUNGO_FILL_WATER);
+        }
+        break;
+    }
+
     case STATE_LUNGO_FILL_WATER:
-    case STATE_LUNGO_FILL_SUGAR:
-    case STATE_LUNGO_DRAIN:
+        /* Hot water fills TANK2 via SV2 up to high sensor H4 */
+        if (Kava_CtiHladinu(HLADINA_H4)) {
+            Kava_NastavVentil(VENTIL_VODA, false);
+
+            if (s_ctx.sugar_level > SUGAR_LVL_NONE) {
+                CoffeeMachine_SetState(STATE_LUNGO_FILL_SUGAR);
+            } else {
+                CoffeeMachine_SetState(STATE_LUNGO_DRAIN);
+            }
+        }
+        break;
+
+    case STATE_LUNGO_FILL_SUGAR: {
+        uint8_t target_sugar_sensor = HLADINA_H8;
+        if (s_ctx.sugar_level == SUGAR_LVL_MEDIUM) {
+            target_sugar_sensor = HLADINA_H7;
+        } else if (s_ctx.sugar_level == SUGAR_LVL_HIGH) {
+            target_sugar_sensor = HLADINA_H6;
+        }
+
+        if (Kava_CtiHladinu(target_sugar_sensor) || Kava_CtiHladinu(HLADINA_H6)) {
+            Kava_NastavVentil(VENTIL_CUKR, false);
+            CoffeeMachine_SetState(STATE_LUNGO_DRAIN);
+        }
+        break;
+    }
+
+    case STATE_LUNGO_DRAIN: {
+        /* Drain all 3 reservoirs into mixing chamber via SV4 */
+        bool coffee_empty = !Kava_CtiHladinu(HLADINA_H3);
+        bool water_empty = !Kava_CtiHladinu(HLADINA_H5);
+        bool sugar_empty = (s_ctx.sugar_level == SUGAR_LVL_NONE) || !Kava_CtiHladinu(HLADINA_H8);
+
+        if (coffee_empty && water_empty && sugar_empty) {
+            if (!s_ctx.drain_sensors_cleared) {
+                s_ctx.drain_sensors_cleared = true;
+                s_ctx.drain_cleared_ms = now;
+            } else if ((now - s_ctx.drain_cleared_ms) >= DRAIN_GRACE_PERIOD_MS) {
+                /* 3 s grace period elapsed: all 3 reservoirs fully emptied */
+                Kava_NastavVentil(VENTIL_MIX, false);
+                s_ctx.timer_duration_ms = STIR_TIME_LUNGO_MS;
+                CoffeeMachine_SetState(STATE_LUNGO_STIR);
+            }
+        }
+        break;
+    }
+
     case STATE_LUNGO_STIR:
+        /* Stir for 5 s in mixing chamber MIX */
+        if ((now - s_ctx.state_start_ms) >= s_ctx.timer_duration_ms) {
+            Kava_NastavMichadlo(false);
+            s_ctx.timer_duration_ms = DISPENSE_TIME_LUNGO_MS;
+            CoffeeMachine_SetState(STATE_LUNGO_DISPENSE);
+        }
+        break;
+
     case STATE_LUNGO_DISPENSE:
-        /* Placeholder for Part 2 commit */
-        CoffeeMachine_SetState(STATE_DONE);
+        /* Dispense extended Lungo volume via SV5 for 7 s */
+        if ((now - s_ctx.state_start_ms) >= s_ctx.timer_duration_ms) {
+            Kava_NastavVentil(VENTIL_VYPUST, false);
+            s_ctx.timer_duration_ms = DONE_SCREEN_TIMEOUT_MS;
+            CoffeeMachine_SetState(STATE_DONE);
+        }
         break;
 
     /* -------------------------------------------------------------

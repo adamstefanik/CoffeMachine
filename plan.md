@@ -133,7 +133,7 @@ This document contains the breakdown of tasks (Issues) for the embedded firmware
     3. Drain ingredients into mixing chamber (`SV4`) – wait for `H3 == 0 && H8 == 0` + drain grace period (3 s).
     4. Stir in mixing chamber `MIX` for 3 s.
     5. Dispense drink into cup (`SV5`) for volume-equivalent duration + transition back to `STATE_IDLE`.
-  - [ ] Implement **Program 2 – Lungo (with hot water `TANK2` up to `H4`):**
+  - [x] Implement **Program 2 – Lungo (with hot water `TANK2` up to `H4`):**
     1. Fill coffee `TANK1` (`SV1`) up to target sensor (`H3/H2/H1`).
     2. Fill hot water `TANK2` (`SV2`) up to high level `H4`.
     3. If sugar selected (`> 0`), fill sugar `TANK3` (`SV3`) up to target sensor (`H8/H7/H6`).
