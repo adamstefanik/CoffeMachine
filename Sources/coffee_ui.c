@@ -235,7 +235,10 @@ static void UI_RenderPreparation(const CoffeeMachineContext_t *ctx, CoffeeState_
 
     /* Line 2 & 3: Phase details */
     switch (state) {
-    case STATE_FILL_COFFEE:
+    case STATE_ESPRESSO_FILL_COFFEE:
+    case STATE_LUNGO_FILL_COFFEE:
+    case STATE_DOPPIO_C1_FILL_COFFEE:
+    case STATE_DOPPIO_C2_FILL_COFFEE:
         UI_FormatLine20(s_frame[1], "Filling Coffee (SV1)");
         if (ctx->coffee_level == 1U) {
             UI_FormatLine20(s_frame[2], "Target: Mild   (H3)");
@@ -246,12 +249,14 @@ static void UI_RenderPreparation(const CoffeeMachineContext_t *ctx, CoffeeState_
         }
         break;
 
-    case STATE_FILL_WATER:
+    case STATE_LUNGO_FILL_WATER:
         UI_FormatLine20(s_frame[1], "Filling Water  (SV2)");
         UI_FormatLine20(s_frame[2], "Target: High   (H4)");
         break;
 
-    case STATE_FILL_SUGAR:
+    case STATE_ESPRESSO_FILL_SUGAR:
+    case STATE_LUNGO_FILL_SUGAR:
+    case STATE_DOPPIO_C2_FILL_SUGAR:
         UI_FormatLine20(s_frame[1], "Filling Sugar  (SV3)");
         if (ctx->sugar_level == 1U) {
             UI_FormatLine20(s_frame[2], "Target: Low    (H8)");
@@ -262,12 +267,17 @@ static void UI_RenderPreparation(const CoffeeMachineContext_t *ctx, CoffeeState_
         }
         break;
 
-    case STATE_DRAIN_TO_MIX:
+    case STATE_ESPRESSO_DRAIN:
+    case STATE_LUNGO_DRAIN:
+    case STATE_DOPPIO_C1_DRAIN:
+    case STATE_DOPPIO_C2_DRAIN:
         UI_FormatLine20(s_frame[1], "Draining to Mixer");
         UI_FormatLine20(s_frame[2], "Valve SV4 open...");
         break;
 
-    case STATE_STIRRING: {
+    case STATE_ESPRESSO_STIR:
+    case STATE_LUNGO_STIR:
+    case STATE_DOPPIO_STIR: {
         UI_FormatLine20(s_frame[1], "Mixing Beverage");
         uint32_t elapsed = now - ctx->state_start_ms;
         uint32_t rem_ms = (elapsed < ctx->timer_duration_ms) ? (ctx->timer_duration_ms - elapsed) : 0U;
@@ -281,7 +291,9 @@ static void UI_RenderPreparation(const CoffeeMachineContext_t *ctx, CoffeeState_
         break;
     }
 
-    case STATE_DISPENSING: {
+    case STATE_ESPRESSO_DISPENSE:
+    case STATE_LUNGO_DISPENSE:
+    case STATE_DOPPIO_DISPENSE: {
         UI_FormatLine20(s_frame[1], "Dispensing to Cup");
         uint32_t elapsed = now - ctx->state_start_ms;
         uint32_t rem_ms = (elapsed < ctx->timer_duration_ms) ? (ctx->timer_duration_ms - elapsed) : 0U;

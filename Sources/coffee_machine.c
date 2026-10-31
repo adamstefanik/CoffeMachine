@@ -9,19 +9,14 @@
 #include "drv_kava.h"
 #include "drv_systick.h"
 
-#define DRAIN_GRACE_PERIOD_MS       (2500U) /* Extra drain time after lower sensors hit 0 */
-#define STORNO_DRAIN_GRACE_MS       (3000U) /* Extra drain time during emergency storno */
+#define DRAIN_GRACE_PERIOD_MS       (3000U) /* 3 s extra drain time after sensors hit 0 */
+#define STORNO_DRAIN_GRACE_MS       (3000U) /* 3 s extra drain time during emergency storno */
 #define STORNO_DISPENSE_TIME_MS     (7000U) /* Drain duration for mixing chamber in storno */
 #define DONE_SCREEN_TIMEOUT_MS      (3500U) /* Time to show Done screen before IDLE */
 
-/* Drink-specific parameters */
-#define STIR_TIME_ESPRESSO_MS       (3000U)
-#define STIR_TIME_LUNGO_MS          (5000U)
-#define STIR_TIME_DOPPIO_MS         (6000U)
-
-#define DISPENSE_TIME_ESPRESSO_MS   (5000U)
-#define DISPENSE_TIME_LUNGO_MS      (7000U)
-#define DISPENSE_TIME_DOPPIO_MS     (8000U)
+/* Program 1: Espresso parameters */
+#define STIR_TIME_ESPRESSO_MS       (3000U) /* 3 s stirring in mixer */
+#define DISPENSE_TIME_ESPRESSO_MS   (5000U) /* 5 s dispensing into cup */
 
 static CoffeeState_t s_state = STATE_IDLE;
 static CoffeeMachineContext_t s_ctx;
@@ -40,6 +35,57 @@ static void CoffeeMachine_SetState(CoffeeState_t new_state)
     s_ctx.drain_sensors_cleared = false;
     s_ctx.drain_cleared_ms = 0U;
     Task_Buttons_ClearAll();
+
+    /* Deterministic actuator state upon entering new state */
+    switch (new_state) {
+    case STATE_IDLE:
+    case STATE_WIZARD_COFFEE:
+    case STATE_WIZARD_SUGAR:
+    case STATE_DONE:
+        Kava_VypniVse();
+        break;
+
+    case STATE_ESPRESSO_FILL_COFFEE:
+    case STATE_LUNGO_FILL_COFFEE:
+    case STATE_DOPPIO_C1_FILL_COFFEE:
+    case STATE_DOPPIO_C2_FILL_COFFEE:
+        Kava_NastavVentil(VENTIL_KAVA, true);
+        break;
+
+    case STATE_LUNGO_FILL_WATER:
+        Kava_NastavVentil(VENTIL_VODA, true);
+        break;
+
+    case STATE_ESPRESSO_FILL_SUGAR:
+    case STATE_LUNGO_FILL_SUGAR:
+    case STATE_DOPPIO_C2_FILL_SUGAR:
+        Kava_NastavVentil(VENTIL_CUKR, true);
+        break;
+
+    case STATE_ESPRESSO_DRAIN:
+    case STATE_LUNGO_DRAIN:
+    case STATE_DOPPIO_C1_DRAIN:
+    case STATE_DOPPIO_C2_DRAIN:
+    case STATE_STORNO_DRAIN_TANKS:
+        Kava_NastavVentil(VENTIL_MIX, true);
+        break;
+
+    case STATE_ESPRESSO_STIR:
+    case STATE_LUNGO_STIR:
+    case STATE_DOPPIO_STIR:
+        Kava_NastavMichadlo(true);
+        break;
+
+    case STATE_ESPRESSO_DISPENSE:
+    case STATE_LUNGO_DISPENSE:
+    case STATE_DOPPIO_DISPENSE:
+    case STATE_STORNO_DRAIN_MIX:
+        Kava_NastavVentil(VENTIL_VYPUST, true);
+        break;
+
+    default:
+        break;
+    }
 }
 
 void CoffeeMachine_Init(void)
@@ -98,9 +144,9 @@ void Task_CoffeeMachine(void)
 {
     uint32_t now = SYSTICK_millis();
 
-    /* Emergency STORNO handling: SW4 press during active preparation */
-    if ((s_state >= STATE_FILL_COFFEE) && (s_state <= STATE_DISPENSING)) {
-        if (Buttons_WasPressed(SW4)) {
+    /* Emergency STORNO handling: SW4 press during any active preparation phase */
+    if ((s_state >= STATE_ESPRESSO_FILL_COFFEE) && (s_state <= STATE_DOPPIO_DISPENSE)) {
+        if (Task_Buttons_IsStorno() || Task_Buttons_WasPressed(BTN_SW4)) {
             CoffeeMachine_RequestStorno();
             return;
         }
@@ -113,15 +159,15 @@ void Task_CoffeeMachine(void)
     case STATE_IDLE:
         Kava_VypniVse();
 
-        if (Buttons_WasPressed(SW1)) {
+        if (Task_Buttons_WasPressed(BTN_SW1)) {
             s_ctx.drink = DRINK_ESPRESSO;
             s_ctx.coffee_level = ADC_GetCoffeeLevel();
             CoffeeMachine_SetState(STATE_WIZARD_COFFEE);
-        } else if (Buttons_WasPressed(SW2)) {
+        } else if (Task_Buttons_WasPressed(BTN_SW2)) {
             s_ctx.drink = DRINK_LUNGO;
             s_ctx.coffee_level = ADC_GetCoffeeLevel();
             CoffeeMachine_SetState(STATE_WIZARD_COFFEE);
-        } else if (Buttons_WasPressed(SW3)) {
+        } else if (Task_Buttons_WasPressed(BTN_SW3)) {
             s_ctx.drink = DRINK_DOPPIO;
             s_ctx.coffee_level = ADC_GetCoffeeLevel();
             CoffeeMachine_SetState(STATE_WIZARD_COFFEE);
@@ -132,7 +178,7 @@ void Task_CoffeeMachine(void)
         /* Continuously update coffee level from potentiometer position */
         s_ctx.coffee_level = ADC_GetCoffeeLevel();
 
-        if (Buttons_WasPressed(SW4)) {
+        if (Task_Buttons_WasPressed(BTN_SW4)) {
             /* Cancel / Back -> return to drink selection */
             CoffeeMachine_SetState(STATE_IDLE);
         } else if (Buttons_WasAnyConfirmPressed()) {
@@ -146,153 +192,94 @@ void Task_CoffeeMachine(void)
         /* Continuously update sugar level from potentiometer position */
         s_ctx.sugar_level = ADC_GetSugarLevel();
 
-        if (Buttons_WasPressed(SW4)) {
+        if (Task_Buttons_WasPressed(BTN_SW4)) {
             /* Cancel / Back -> return to drink selection */
             CoffeeMachine_SetState(STATE_IDLE);
         } else if (Buttons_WasAnyConfirmPressed()) {
-            /* Confirm sugar level -> start beverage preparation! */
+            /* Confirm sugar level -> dispatch selected beverage program! */
             s_ctx.doppio_cycle = 1U;
-            Kava_NastavVentil(VENTIL_KAVA, true);
-            CoffeeMachine_SetState(STATE_FILL_COFFEE);
+
+            if (s_ctx.drink == DRINK_ESPRESSO) {
+                CoffeeMachine_SetState(STATE_ESPRESSO_FILL_COFFEE);
+            } else if (s_ctx.drink == DRINK_LUNGO) {
+                CoffeeMachine_SetState(STATE_LUNGO_FILL_COFFEE);
+            } else {
+                CoffeeMachine_SetState(STATE_DOPPIO_C1_FILL_COFFEE);
+            }
         }
         break;
 
     /* -------------------------------------------------------------
-     * ACTIVE PREPARATION PHASES
+     * PROGRAM 1: ESPRESSO CONTROL SEQUENCE (without TANK2)
      * ------------------------------------------------------------- */
-    case STATE_FILL_COFFEE: {
-        Kava_NastavVentil(VENTIL_KAVA, true);
-
-        /* Determine target sensor */
+    case STATE_ESPRESSO_FILL_COFFEE: {
+        /* Target sensor based on selected coffee strength: H3=Mild, H2=Medium, H1=Strong */
         uint8_t target_sensor = HLADINA_H2;
-        if (s_ctx.coffee_level == 1U) {
+        if (s_ctx.coffee_level == COFFEE_LVL_MILD) {
             target_sensor = HLADINA_H3;
-        } else if (s_ctx.coffee_level == 3U) {
+        } else if (s_ctx.coffee_level == COFFEE_LVL_STRONG) {
             target_sensor = HLADINA_H1;
         }
 
-        /* Check target sensor or overflow safety */
+        /* Check if level reached target sensor or upper overflow guard H1 */
         if (Kava_CtiHladinu(target_sensor) || Kava_CtiHladinu(HLADINA_H1)) {
             Kava_NastavVentil(VENTIL_KAVA, false);
 
-            if ((s_ctx.drink == DRINK_DOPPIO) && (s_ctx.doppio_cycle == 1U)) {
-                /* Doppio cycle 1: transfer coffee directly to mixer */
-                Kava_NastavVentil(VENTIL_MIX, true);
-                CoffeeMachine_SetState(STATE_DRAIN_TO_MIX);
-            } else if (s_ctx.drink == DRINK_LUNGO) {
-                /* Lungo: next fill hot water tank (SV2) */
-                Kava_NastavVentil(VENTIL_VODA, true);
-                CoffeeMachine_SetState(STATE_FILL_WATER);
+            if (s_ctx.sugar_level > SUGAR_LVL_NONE) {
+                CoffeeMachine_SetState(STATE_ESPRESSO_FILL_SUGAR);
             } else {
-                /* Espresso or Doppio cycle 2: fill sugar if selected, else drain */
-                if (s_ctx.sugar_level > 0U) {
-                    Kava_NastavVentil(VENTIL_CUKR, true);
-                    CoffeeMachine_SetState(STATE_FILL_SUGAR);
-                } else {
-                    Kava_NastavVentil(VENTIL_MIX, true);
-                    CoffeeMachine_SetState(STATE_DRAIN_TO_MIX);
-                }
+                CoffeeMachine_SetState(STATE_ESPRESSO_DRAIN);
             }
         }
         break;
     }
 
-    case STATE_FILL_WATER:
-        Kava_NastavVentil(VENTIL_VODA, true);
-
-        /* Lungo hot water fills up to sensor H4 */
-        if (Kava_CtiHladinu(HLADINA_H4)) {
-            Kava_NastavVentil(VENTIL_VODA, false);
-
-            if (s_ctx.sugar_level > 0U) {
-                Kava_NastavVentil(VENTIL_CUKR, true);
-                CoffeeMachine_SetState(STATE_FILL_SUGAR);
-            } else {
-                Kava_NastavVentil(VENTIL_MIX, true);
-                CoffeeMachine_SetState(STATE_DRAIN_TO_MIX);
-            }
-        }
-        break;
-
-    case STATE_FILL_SUGAR: {
-        Kava_NastavVentil(VENTIL_CUKR, true);
-
+    case STATE_ESPRESSO_FILL_SUGAR: {
+        /* Target sensor based on selected sugar level: H8=Low, H7=Medium, H6=High */
         uint8_t target_sugar_sensor = HLADINA_H8;
-        if (s_ctx.sugar_level == 2U) {
+        if (s_ctx.sugar_level == SUGAR_LVL_MEDIUM) {
             target_sugar_sensor = HLADINA_H7;
-        } else if (s_ctx.sugar_level == 3U) {
+        } else if (s_ctx.sugar_level == SUGAR_LVL_HIGH) {
             target_sugar_sensor = HLADINA_H6;
         }
 
         if (Kava_CtiHladinu(target_sugar_sensor) || Kava_CtiHladinu(HLADINA_H6)) {
             Kava_NastavVentil(VENTIL_CUKR, false);
-            Kava_NastavVentil(VENTIL_MIX, true);
-            CoffeeMachine_SetState(STATE_DRAIN_TO_MIX);
+            CoffeeMachine_SetState(STATE_ESPRESSO_DRAIN);
         }
         break;
     }
 
-    case STATE_DRAIN_TO_MIX: {
-        Kava_NastavVentil(VENTIL_MIX, true);
-
-        /* Check whether active reservoirs have fallen below lower sensors */
+    case STATE_ESPRESSO_DRAIN: {
+        /* Wait until TANK1 drops below H3 and TANK3 drops below H8 */
         bool coffee_empty = !Kava_CtiHladinu(HLADINA_H3);
-        bool water_empty = (s_ctx.drink != DRINK_LUNGO) || !Kava_CtiHladinu(HLADINA_H5);
-        bool sugar_empty = (s_ctx.sugar_level == 0U) ||
-                           ((s_ctx.drink == DRINK_DOPPIO) && (s_ctx.doppio_cycle == 1U)) ||
-                           !Kava_CtiHladinu(HLADINA_H8);
+        bool sugar_empty = (s_ctx.sugar_level == SUGAR_LVL_NONE) || !Kava_CtiHladinu(HLADINA_H8);
 
-        if (coffee_empty && water_empty && sugar_empty) {
+        if (coffee_empty && sugar_empty) {
             if (!s_ctx.drain_sensors_cleared) {
                 s_ctx.drain_sensors_cleared = true;
                 s_ctx.drain_cleared_ms = now;
             } else if ((now - s_ctx.drain_cleared_ms) >= DRAIN_GRACE_PERIOD_MS) {
-                /* Grace period elapsed: all upper tanks are fully empty */
+                /* 3 s grace period elapsed: reservoirs and pipes fully empty */
                 Kava_NastavVentil(VENTIL_MIX, false);
-
-                if ((s_ctx.drink == DRINK_DOPPIO) && (s_ctx.doppio_cycle == 1U)) {
-                    /* Start cycle 2 for Doppio */
-                    s_ctx.doppio_cycle = 2U;
-                    Kava_NastavVentil(VENTIL_KAVA, true);
-                    CoffeeMachine_SetState(STATE_FILL_COFFEE);
-                } else {
-                    /* Proceed to stirring */
-                    Kava_NastavMichadlo(true);
-                    if (s_ctx.drink == DRINK_ESPRESSO) {
-                        s_ctx.timer_duration_ms = STIR_TIME_ESPRESSO_MS;
-                    } else if (s_ctx.drink == DRINK_LUNGO) {
-                        s_ctx.timer_duration_ms = STIR_TIME_LUNGO_MS;
-                    } else {
-                        s_ctx.timer_duration_ms = STIR_TIME_DOPPIO_MS;
-                    }
-                    CoffeeMachine_SetState(STATE_STIRRING);
-                }
+                s_ctx.timer_duration_ms = STIR_TIME_ESPRESSO_MS;
+                CoffeeMachine_SetState(STATE_ESPRESSO_STIR);
             }
         }
         break;
     }
 
-    case STATE_STIRRING:
-        Kava_NastavMichadlo(true);
-
+    case STATE_ESPRESSO_STIR:
+        /* Stir for 3 s in mixing chamber MIX */
         if ((now - s_ctx.state_start_ms) >= s_ctx.timer_duration_ms) {
             Kava_NastavMichadlo(false);
-            Kava_NastavVentil(VENTIL_VYPUST, true);
-
-            if (s_ctx.drink == DRINK_ESPRESSO) {
-                s_ctx.timer_duration_ms = DISPENSE_TIME_ESPRESSO_MS;
-            } else if (s_ctx.drink == DRINK_LUNGO) {
-                s_ctx.timer_duration_ms = DISPENSE_TIME_LUNGO_MS;
-            } else {
-                s_ctx.timer_duration_ms = DISPENSE_TIME_DOPPIO_MS;
-            }
-            CoffeeMachine_SetState(STATE_DISPENSING);
+            s_ctx.timer_duration_ms = DISPENSE_TIME_ESPRESSO_MS;
+            CoffeeMachine_SetState(STATE_ESPRESSO_DISPENSE);
         }
         break;
 
-    case STATE_DISPENSING:
-        Kava_NastavVentil(VENTIL_VYPUST, true);
-
+    case STATE_ESPRESSO_DISPENSE:
+        /* Dispense drink into cup via SV5 for 5 s */
         if ((now - s_ctx.state_start_ms) >= s_ctx.timer_duration_ms) {
             Kava_NastavVentil(VENTIL_VYPUST, false);
             s_ctx.timer_duration_ms = DONE_SCREEN_TIMEOUT_MS;
@@ -300,11 +287,41 @@ void Task_CoffeeMachine(void)
         }
         break;
 
+    /* -------------------------------------------------------------
+     * PROGRAM 2: LUNGO CONTROL SEQUENCE (to be finalized in Part 2)
+     * ------------------------------------------------------------- */
+    case STATE_LUNGO_FILL_COFFEE:
+    case STATE_LUNGO_FILL_WATER:
+    case STATE_LUNGO_FILL_SUGAR:
+    case STATE_LUNGO_DRAIN:
+    case STATE_LUNGO_STIR:
+    case STATE_LUNGO_DISPENSE:
+        /* Placeholder for Part 2 commit */
+        CoffeeMachine_SetState(STATE_DONE);
+        break;
+
+    /* -------------------------------------------------------------
+     * PROGRAM 3: DOPPIO CONTROL SEQUENCE (to be finalized in Part 3)
+     * ------------------------------------------------------------- */
+    case STATE_DOPPIO_C1_FILL_COFFEE:
+    case STATE_DOPPIO_C1_DRAIN:
+    case STATE_DOPPIO_C2_FILL_COFFEE:
+    case STATE_DOPPIO_C2_FILL_SUGAR:
+    case STATE_DOPPIO_C2_DRAIN:
+    case STATE_DOPPIO_STIR:
+    case STATE_DOPPIO_DISPENSE:
+        /* Placeholder for Part 3 commit */
+        CoffeeMachine_SetState(STATE_DONE);
+        break;
+
+    /* -------------------------------------------------------------
+     * ORDER COMPLETION
+     * ------------------------------------------------------------- */
     case STATE_DONE:
         Kava_VypniVse();
 
         if (((now - s_ctx.state_start_ms) >= s_ctx.timer_duration_ms) ||
-            Buttons_WasAnyConfirmPressed() || Buttons_WasPressed(SW4)) {
+            Buttons_WasAnyConfirmPressed() || Task_Buttons_WasPressed(BTN_SW4)) {
             CoffeeMachine_SetState(STATE_IDLE);
         }
         break;

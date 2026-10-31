@@ -126,11 +126,11 @@ This document contains the breakdown of tasks (Issues) for the embedded firmware
   Design and implement the main non-blocking finite state machine (`Task_CoffeeMachine`) with 3 distinct beverage programs, each following a specific control sequence.
 
   **Tasks:**
-  - [ ] Define state enum (`CoffeeState_t`) and order context structure (selected drink, target coffee sensor `H3/H2/H1`, target sugar sensor `0/H8/H7/H6`, cycle counter for Doppio, timestamps for `SYSTICK_millis()`).
-  - [ ] Implement **Program 1 – Espresso (without `TANK2`):**
+  - [x] Define state enum (`CoffeeState_t`) and order context structure (selected drink, target coffee sensor `H3/H2/H1`, target sugar sensor `0/H8/H7/H6`, cycle counter for Doppio, timestamps for `SYSTICK_millis()`).
+  - [x] Implement **Program 1 – Espresso (without `TANK2`):**
     1. Fill coffee `TANK1` (`SV1`) up to target sensor (`H3`, `H2`, or `H1`).
     2. If sugar selected (`> 0`), fill sugar `TANK3` (`SV3`) up to target sensor (`H8`, `H7`, or `H6`).
-    3. Drain ingredients into mixing chamber (`SV4`) – wait for `H3 == 0 && H8 == 0` + drain grace period (e.g. 3 s).
+    3. Drain ingredients into mixing chamber (`SV4`) – wait for `H3 == 0 && H8 == 0` + drain grace period (3 s).
     4. Stir in mixing chamber `MIX` for 3 s.
     5. Dispense drink into cup (`SV5`) for volume-equivalent duration + transition back to `STATE_IDLE`.
   - [ ] Implement **Program 2 – Lungo (with hot water `TANK2` up to `H4`):**
