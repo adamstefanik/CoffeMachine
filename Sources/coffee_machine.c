@@ -22,6 +22,10 @@
 #define STIR_TIME_LUNGO_MS          (5000U) /* 5 s stirring for larger volume */
 #define DISPENSE_TIME_LUNGO_MS      (7000U) /* 7 s dispensing full cup volume */
 
+/* Program 3: Doppio parameters */
+#define STIR_TIME_DOPPIO_MS         (6000U) /* 6 s stirring double batch in mixer */
+#define DISPENSE_TIME_DOPPIO_MS     (8000U) /* 8 s dispensing double volume */
+
 static CoffeeState_t s_state = STATE_IDLE;
 static CoffeeMachineContext_t s_ctx;
 
@@ -43,6 +47,10 @@ static void CoffeeMachine_SetState(CoffeeState_t new_state)
     /* Deterministic actuator state upon entering new state */
     switch (new_state) {
     case STATE_IDLE:
+        s_ctx.doppio_cycle = 1U;
+        Kava_VypniVse();
+        break;
+
     case STATE_WIZARD_COFFEE:
     case STATE_WIZARD_SUGAR:
     case STATE_DONE:
@@ -378,17 +386,111 @@ void Task_CoffeeMachine(void)
         break;
 
     /* -------------------------------------------------------------
-     * PROGRAM 3: DOPPIO CONTROL SEQUENCE (to be finalized in Part 3)
+     * PROGRAM 3: DOPPIO CONTROL SEQUENCE (2x cycle from TANK1)
      * ------------------------------------------------------------- */
-    case STATE_DOPPIO_C1_FILL_COFFEE:
+    case STATE_DOPPIO_C1_FILL_COFFEE: {
+        /* Cycle 1: Fill coffee TANK1 via SV1 */
+        uint8_t target_sensor = HLADINA_H2;
+        if (s_ctx.coffee_level == COFFEE_LVL_MILD) {
+            target_sensor = HLADINA_H3;
+        } else if (s_ctx.coffee_level == COFFEE_LVL_STRONG) {
+            target_sensor = HLADINA_H1;
+        }
+
+        if (Kava_CtiHladinu(target_sensor) || Kava_CtiHladinu(HLADINA_H1)) {
+            Kava_NastavVentil(VENTIL_KAVA, false);
+            CoffeeMachine_SetState(STATE_DOPPIO_C1_DRAIN);
+        }
+        break;
+    }
+
     case STATE_DOPPIO_C1_DRAIN:
-    case STATE_DOPPIO_C2_FILL_COFFEE:
-    case STATE_DOPPIO_C2_FILL_SUGAR:
-    case STATE_DOPPIO_C2_DRAIN:
+        /* Cycle 1: Drain TANK1 into mixer via SV4 */
+        if (!Kava_CtiHladinu(HLADINA_H3)) {
+            if (!s_ctx.drain_sensors_cleared) {
+                s_ctx.drain_sensors_cleared = true;
+                s_ctx.drain_cleared_ms = now;
+            } else if ((now - s_ctx.drain_cleared_ms) >= DRAIN_GRACE_PERIOD_MS) {
+                /* TANK1 completely emptied into mixer */
+                Kava_NastavVentil(VENTIL_MIX, false);
+                s_ctx.doppio_cycle = 2U;
+                CoffeeMachine_SetState(STATE_DOPPIO_C2_FILL_COFFEE);
+            }
+        }
+        break;
+
+    case STATE_DOPPIO_C2_FILL_COFFEE: {
+        /* Cycle 2: Refill coffee TANK1 via SV1 */
+        uint8_t target_sensor = HLADINA_H2;
+        if (s_ctx.coffee_level == COFFEE_LVL_MILD) {
+            target_sensor = HLADINA_H3;
+        } else if (s_ctx.coffee_level == COFFEE_LVL_STRONG) {
+            target_sensor = HLADINA_H1;
+        }
+
+        if (Kava_CtiHladinu(target_sensor) || Kava_CtiHladinu(HLADINA_H1)) {
+            Kava_NastavVentil(VENTIL_KAVA, false);
+
+            if (s_ctx.sugar_level > SUGAR_LVL_NONE) {
+                CoffeeMachine_SetState(STATE_DOPPIO_C2_FILL_SUGAR);
+            } else {
+                CoffeeMachine_SetState(STATE_DOPPIO_C2_DRAIN);
+            }
+        }
+        break;
+    }
+
+    case STATE_DOPPIO_C2_FILL_SUGAR: {
+        /* Cycle 2: Add optional sugar into TANK3 via SV3 */
+        uint8_t target_sugar_sensor = HLADINA_H8;
+        if (s_ctx.sugar_level == SUGAR_LVL_MEDIUM) {
+            target_sugar_sensor = HLADINA_H7;
+        } else if (s_ctx.sugar_level == SUGAR_LVL_HIGH) {
+            target_sugar_sensor = HLADINA_H6;
+        }
+
+        if (Kava_CtiHladinu(target_sugar_sensor) || Kava_CtiHladinu(HLADINA_H6)) {
+            Kava_NastavVentil(VENTIL_CUKR, false);
+            CoffeeMachine_SetState(STATE_DOPPIO_C2_DRAIN);
+        }
+        break;
+    }
+
+    case STATE_DOPPIO_C2_DRAIN: {
+        /* Cycle 2: Drain coffee and optional sugar into mixer via SV4 */
+        bool coffee_empty = !Kava_CtiHladinu(HLADINA_H3);
+        bool sugar_empty = (s_ctx.sugar_level == SUGAR_LVL_NONE) || !Kava_CtiHladinu(HLADINA_H8);
+
+        if (coffee_empty && sugar_empty) {
+            if (!s_ctx.drain_sensors_cleared) {
+                s_ctx.drain_sensors_cleared = true;
+                s_ctx.drain_cleared_ms = now;
+            } else if ((now - s_ctx.drain_cleared_ms) >= DRAIN_GRACE_PERIOD_MS) {
+                /* Both cycles fully drained into mixer */
+                Kava_NastavVentil(VENTIL_MIX, false);
+                s_ctx.timer_duration_ms = STIR_TIME_DOPPIO_MS;
+                CoffeeMachine_SetState(STATE_DOPPIO_STIR);
+            }
+        }
+        break;
+    }
+
     case STATE_DOPPIO_STIR:
+        /* Stir double batch in mixing chamber for 6 s */
+        if ((now - s_ctx.state_start_ms) >= s_ctx.timer_duration_ms) {
+            Kava_NastavMichadlo(false);
+            s_ctx.timer_duration_ms = DISPENSE_TIME_DOPPIO_MS;
+            CoffeeMachine_SetState(STATE_DOPPIO_DISPENSE);
+        }
+        break;
+
     case STATE_DOPPIO_DISPENSE:
-        /* Placeholder for Part 3 commit */
-        CoffeeMachine_SetState(STATE_DONE);
+        /* Dispense double batch via SV5 for 8 s */
+        if ((now - s_ctx.state_start_ms) >= s_ctx.timer_duration_ms) {
+            Kava_NastavVentil(VENTIL_VYPUST, false);
+            s_ctx.timer_duration_ms = DONE_SCREEN_TIMEOUT_MS;
+            CoffeeMachine_SetState(STATE_DONE);
+        }
         break;
 
     /* -------------------------------------------------------------

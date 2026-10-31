@@ -140,12 +140,12 @@ This document contains the breakdown of tasks (Issues) for the embedded firmware
     4. Drain all reservoirs into mixing chamber (`SV4`) – wait for `H3 == 0 && H5 == 0 && H8 == 0` + grace period.
     5. Stir in mixing chamber `MIX` for 5 s.
     6. Dispense drink into cup (`SV5`) + transition back to `STATE_IDLE`.
-  - [ ] Implement **Program 3 – Doppio (2x coffee cycle from `TANK1`, without `TANK2`):**
+  - [x] Implement **Program 3 – Doppio (2x coffee cycle from `TANK1`, without `TANK2`):**
     1. **Cycle 1 (Coffee):** Fill `TANK1` (`SV1`) to target sensor (`H3/H2/H1`) and transfer via `SV4` to mixer.
     2. **Cycle 2 (Coffee + Sugar):** Fill `TANK1` (`SV1`) to target sensor again + fill sugar `TANK3` (`SV3`, if `> 0`), and transfer via `SV4` to mixer (wait for `H3 == 0 && H8 == 0` + grace period).
     3. Stir double batch in mixing chamber `MIX` for 6 s.
     4. Dispense drink into cup (`SV5`) + transition back to `STATE_IDLE`.
-  - [ ] Ensure no blocking calls (`while` loops / `SYSTICK_delay_ms`) are used in any state.
+  - [x] Ensure no blocking calls (`while` loops / `SYSTICK_delay_ms`) are used in any state.
 
 ---
 
