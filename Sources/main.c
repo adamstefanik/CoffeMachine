@@ -67,13 +67,27 @@ static void App_Init(void)
 }
 
 /**
- * @brief Pomocna neblokujici uloha pro indikaci stisku tlacitek na LED LD1.
+ * @brief Pomocna neblokujici uloha pro indikaci stisku tlacitek a varovny stav STORNO na LED LD1.
  */
 static void Task_StatusLed(void)
 {
-    bool any_button = Task_Buttons_IsDown(BTN_SW1) || Task_Buttons_IsDown(BTN_SW2) ||
-                      Task_Buttons_IsDown(BTN_SW3) || Task_Buttons_IsDown(BTN_SW4);
-    pinWrite(LD1, any_button ? HIGH : LOW);
+    static uint32_t s_last_blink_ms = 0U;
+    static bool s_blink_state = false;
+    uint32_t now = SYSTICK_millis();
+
+    if (CoffeeMachine_IsStornoActive()) {
+        /* Varovne rychle blikani (150 ms) behem havarijniho vypousteni jednotky */
+        if ((now - s_last_blink_ms) >= 150U) {
+            s_last_blink_ms = now;
+            s_blink_state = !s_blink_state;
+            pinWrite(LD1, s_blink_state ? HIGH : LOW);
+        }
+    } else {
+        /* Standardni indikace stisku libovolneho tlacitka */
+        bool any_button = Task_Buttons_IsDown(BTN_SW1) || Task_Buttons_IsDown(BTN_SW2) ||
+                          Task_Buttons_IsDown(BTN_SW3) || Task_Buttons_IsDown(BTN_SW4);
+        pinWrite(LD1, any_button ? HIGH : LOW);
+    }
 }
 
 int main(void)

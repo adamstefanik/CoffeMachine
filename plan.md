@@ -152,12 +152,13 @@ This document contains the breakdown of tasks (Issues) for the embedded firmware
 ## Issue 7: Immediate program cancellation (STORNO) and safe draining of the unit
 - **Labels:** `safety`, `fsm`, `high-priority`
 - **Priority:** High (Assignment grading: 2 points)
+- **Status:** Completed
 - **Description:**
   Ensure immediate system response to `SW4` (`STORNO`) button press at any moment during execution and implement a clean, fail-safe shutdown routine leaving zero liquid inside reservoirs or mixing chamber.
 
   **Tasks:**
-  - [ ] If user presses `SW4` during setup in Wizard (prior to opening any valves), immediately cancel selection and return to `STATE_IDLE`.
-  - [ ] If user presses `SW4` during any phase of beverage preparation:
+  - [x] If user presses `SW4` during setup in Wizard (prior to opening any valves), immediately cancel selection and return to `STATE_IDLE`.
+  - [x] If user presses `SW4` during any phase of beverage preparation:
     1. Immediately close supply valves `SV1`, `SV2`, `SV3` and stop mixer `MIX`.
     2. Transition FSM to `STATE_STORNO_DRAIN_TANKS` and display alert on LCD: `!! STORNO !! Draining tanks...`.
     3. Open valve `SV4`, wait until `H3 == 0 && H5 == 0 && H8 == 0`, append grace period (e.g. 3 s), then close `SV4`.

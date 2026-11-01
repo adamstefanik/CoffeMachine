@@ -7,6 +7,7 @@
 #include "drv_lcd.h"
 #include "drv_systick.h"
 #include "drv_adc.h"
+#include "drv_kava.h"
 #include <string.h>
 
 #define UI_REFRESH_INTERVAL_MS   (100U) /* Screen refresh interval in milliseconds */
@@ -315,18 +316,31 @@ static void UI_RenderPreparation(const CoffeeMachineContext_t *ctx, CoffeeState_
         return;
 
     case STATE_STORNO_DRAIN_TANKS:
-        UI_FormatLine20(s_frame[0], "!! STORNO ACTIVE !!");
-        UI_FormatLine20(s_frame[1], "Draining tanks (SV4)");
-        UI_FormatLine20(s_frame[2], "Safe shutdown...");
-        UI_FormatLine20(s_frame[3], "Please wait...");
+        UI_FormatLine20(s_frame[0], "    !! STORNO !!    ");
+        UI_FormatLine20(s_frame[1], "Draining tanks...   ");
+        if (Kava_JsouHorniNadrzePodMinimem()) {
+            UI_FormatLine20(s_frame[2], "Grace drain (3s)... ");
+        } else {
+            UI_FormatLine20(s_frame[2], "Emptying T1-T3 (SV4)");
+        }
+        UI_FormatLine20(s_frame[3], "Safe shutdown...    ");
         return;
 
-    case STATE_STORNO_DRAIN_MIX:
-        UI_FormatLine20(s_frame[0], "!! STORNO ACTIVE !!");
-        UI_FormatLine20(s_frame[1], "Draining mixer (SV5)");
-        UI_FormatLine20(s_frame[2], "Safe shutdown...");
-        UI_FormatLine20(s_frame[3], "Please wait...");
+    case STATE_STORNO_DRAIN_MIX: {
+        UI_FormatLine20(s_frame[0], "    !! STORNO !!    ");
+        UI_FormatLine20(s_frame[1], "Draining mixer...   ");
+        uint32_t elapsed = now - ctx->state_start_ms;
+        uint32_t rem_ms = (elapsed < ctx->timer_duration_ms) ? (ctx->timer_duration_ms - elapsed) : 0U;
+        uint8_t rem_s = (uint8_t)((rem_ms + 999U) / 1000U);
+
+        memcpy(line3, "Time left: ", 11);
+        UI_FormatDec2(rem_s, &line3[11]);
+        line3[13] = 's';
+        line3[14] = '\0';
+        UI_FormatLine20(s_frame[2], line3);
+        UI_FormatLine20(s_frame[3], "Safe shutdown...    ");
         return;
+    }
 
     default:
         break;
