@@ -112,6 +112,11 @@ const char* CoffeeMachine_GetDrinkName(DrinkType_t drink);
  */
 void CoffeeMachine_RequestStorno(void);
 
+/**
+ * @brief Returns true if an emergency STORNO drain sequence is currently executing.
+ */
+bool CoffeeMachine_IsStornoActive(void);
+
 #ifdef __cplusplus
 }
 #endif

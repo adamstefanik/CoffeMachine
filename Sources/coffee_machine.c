@@ -78,8 +78,12 @@ static void CoffeeMachine_SetState(CoffeeState_t new_state)
     case STATE_LUNGO_DRAIN:
     case STATE_DOPPIO_C1_DRAIN:
     case STATE_DOPPIO_C2_DRAIN:
+        Kava_NastavVentil(VENTIL_MIX, true);
+        break;
+
     case STATE_STORNO_DRAIN_TANKS:
         Kava_NastavVentil(VENTIL_MIX, true);
+        s_ctx.timer_duration_ms = STORNO_DRAIN_GRACE_MS;
         break;
 
     case STATE_ESPRESSO_STIR:
@@ -91,8 +95,12 @@ static void CoffeeMachine_SetState(CoffeeState_t new_state)
     case STATE_ESPRESSO_DISPENSE:
     case STATE_LUNGO_DISPENSE:
     case STATE_DOPPIO_DISPENSE:
+        Kava_NastavVentil(VENTIL_VYPUST, true);
+        break;
+
     case STATE_STORNO_DRAIN_MIX:
         Kava_NastavVentil(VENTIL_VYPUST, true);
+        s_ctx.timer_duration_ms = STORNO_DISPENSE_TIME_MS;
         break;
 
     default:
@@ -141,15 +149,19 @@ const char* CoffeeMachine_GetDrinkName(DrinkType_t drink)
 
 void CoffeeMachine_RequestStorno(void)
 {
-    /* Immediately close all supply valves and stop stirrer */
-    Kava_NastavVentil(VENTIL_KAVA, false);
-    Kava_NastavVentil(VENTIL_VODA, false);
-    Kava_NastavVentil(VENTIL_CUKR, false);
-    Kava_NastavMichadlo(false);
+    /* 1. Immediately close all supply valves, dispense valve, and mixer */
+    Kava_VypniVse();
 
-    /* Open valve SV4 to empty upper tanks into mixer */
+    /* 2. Open valve SV4 to safely drain any remaining liquid from upper reservoirs */
     Kava_NastavVentil(VENTIL_MIX, true);
+
+    /* 3. Transition to STORNO drain state and clear button latches */
     CoffeeMachine_SetState(STATE_STORNO_DRAIN_TANKS);
+}
+
+bool CoffeeMachine_IsStornoActive(void)
+{
+    return (s_state == STATE_STORNO_DRAIN_TANKS) || (s_state == STATE_STORNO_DRAIN_MIX);
 }
 
 void Task_CoffeeMachine(void)
@@ -158,7 +170,7 @@ void Task_CoffeeMachine(void)
 
     /* Emergency STORNO handling: SW4 press during any active preparation phase */
     if ((s_state >= STATE_ESPRESSO_FILL_COFFEE) && (s_state <= STATE_DOPPIO_DISPENSE)) {
-        if (Task_Buttons_IsStorno() || Task_Buttons_WasPressed(BTN_SW4)) {
+        if (Task_Buttons_GetStorno() || Task_Buttons_WasPressed(BTN_SW4)) {
             CoffeeMachine_RequestStorno();
             return;
         }
@@ -190,8 +202,8 @@ void Task_CoffeeMachine(void)
         /* Continuously update coffee level from potentiometer position */
         s_ctx.coffee_level = ADC_GetCoffeeLevel();
 
-        if (Task_Buttons_WasPressed(BTN_SW4)) {
-            /* Cancel / Back -> return to drink selection */
+        if (Task_Buttons_GetStorno() || Task_Buttons_WasPressed(BTN_SW4)) {
+            /* Immediate cancellation of wizard setup prior to opening any valves */
             CoffeeMachine_SetState(STATE_IDLE);
         } else if (Buttons_WasAnyConfirmPressed()) {
             /* Confirm coffee level -> move to sugar wizard */
@@ -204,8 +216,8 @@ void Task_CoffeeMachine(void)
         /* Continuously update sugar level from potentiometer position */
         s_ctx.sugar_level = ADC_GetSugarLevel();
 
-        if (Task_Buttons_WasPressed(BTN_SW4)) {
-            /* Cancel / Back -> return to drink selection */
+        if (Task_Buttons_GetStorno() || Task_Buttons_WasPressed(BTN_SW4)) {
+            /* Immediate cancellation of wizard setup prior to opening any valves */
             CoffeeMachine_SetState(STATE_IDLE);
         } else if (Buttons_WasAnyConfirmPressed()) {
             /* Confirm sugar level -> dispatch selected beverage program! */
@@ -500,7 +512,7 @@ void Task_CoffeeMachine(void)
         Kava_VypniVse();
 
         if (((now - s_ctx.state_start_ms) >= s_ctx.timer_duration_ms) ||
-            Buttons_WasAnyConfirmPressed() || Task_Buttons_WasPressed(BTN_SW4)) {
+            Buttons_WasAnyConfirmPressed() || Task_Buttons_GetStorno() || Task_Buttons_WasPressed(BTN_SW4)) {
             CoffeeMachine_SetState(STATE_IDLE);
         }
         break;
@@ -511,25 +523,29 @@ void Task_CoffeeMachine(void)
     case STATE_STORNO_DRAIN_TANKS:
         Kava_NastavVentil(VENTIL_MIX, true);
 
-        /* Wait until all lower level sensors are 0 */
-        if (!Kava_CtiHladinu(HLADINA_H3) && !Kava_CtiHladinu(HLADINA_H5) && !Kava_CtiHladinu(HLADINA_H8)) {
+        /* Wait until all lower level sensors are 0 (H3 == 0 && H5 == 0 && H8 == 0) */
+        if (Kava_JsouHorniNadrzePodMinimem()) {
             if (!s_ctx.drain_sensors_cleared) {
                 s_ctx.drain_sensors_cleared = true;
                 s_ctx.drain_cleared_ms = now;
             } else if ((now - s_ctx.drain_cleared_ms) >= STORNO_DRAIN_GRACE_MS) {
+                /* Grace period elapsed: all upper tanks and pipes fully empty. Close SV4 and drain mixer. */
                 Kava_NastavVentil(VENTIL_MIX, false);
-                Kava_NastavVentil(VENTIL_VYPUST, true);
-                s_ctx.timer_duration_ms = STORNO_DISPENSE_TIME_MS;
                 CoffeeMachine_SetState(STATE_STORNO_DRAIN_MIX);
             }
+        } else {
+            /* If sensors detect liquid again during draining, restart grace period */
+            s_ctx.drain_sensors_cleared = false;
         }
         break;
 
     case STATE_STORNO_DRAIN_MIX:
         Kava_NastavVentil(VENTIL_VYPUST, true);
 
+        /* Drain mixing chamber via SV5 for safe emptying duration (7 s) */
         if ((now - s_ctx.state_start_ms) >= s_ctx.timer_duration_ms) {
             Kava_NastavVentil(VENTIL_VYPUST, false);
+            Kava_VypniVse();
             CoffeeMachine_SetState(STATE_IDLE);
         }
         break;
