@@ -87,6 +87,15 @@ void Kava_VypniVse(void);
  */
 bool Kava_JsouHorniNadrzePodMinimem(void);
 
+/* ============================================================================
+ * Aliasy ovladace podle specifikace v zadani projektu (MIXER_*)
+ * ============================================================================ */
+#define MIXER_NastavVentil      Kava_NastavVentil
+#define MIXER_NastavMichadlo    Kava_NastavMichadlo
+#define MIXER_CtiHladinu        Kava_CtiHladinu
+#define MIXER_VypniVse          Kava_VypniVse
+#define MIXER_Init              Kava_Init
+
 #ifdef __cplusplus
 }
 #endif

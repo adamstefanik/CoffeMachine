@@ -95,12 +95,13 @@ int main(void)
     /* Inicializace systemu a periferii */
     App_Init();
 
-    /* Hlavni nekonecna smycka programu - vykonavani neblokujicich uloh */
+    /* Hlavni nekonecna smycka programu - kooperativni dispecink neblokujicich uloh */
     for (;;) {
         Task_Buttons();         /* Snimani a debouncing tlacitek SW1 az SW4 */
-        Task_CoffeeMachine();   /* Stavovy automat rizeni pripravy napoju */
-        Task_Display();         /* Nekmitave vykreslovani 4-radkoveho LCD a Wizardu */
-        Task_StatusLed();       /* Vizuální indikace aktivity na LED kitu */
+        Task_Potentiometer();   /* Periodicke vzorkovani a filtrace potenciometru */
+        Task_CoffeeMachine();   /* Stavovy automat rizeni pripravy napoju (FSM) */
+        Task_Display();         /* Nekmitave diferencialni vykreslovani 4-radkoveho LCD a Wizardu */
+        Task_StatusLed();       /* Vizualni indikace aktivity na LED LD1 vyvojoveho kitu */
     }
 
     /* Never leave main */

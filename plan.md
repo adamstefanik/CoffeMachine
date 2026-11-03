@@ -170,10 +170,11 @@ This document contains the breakdown of tasks (Issues) for the embedded firmware
 ## Issue 8: Task integration in main.c, code commenting, and testing on EDU-mod fixture
 - **Labels:** `testing`, `documentation`, `medium-priority`
 - **Priority:** Medium
+- **Status:** Completed
 - **Description:**
   Integrate all peripheral modules and non-blocking tasks into the main loop of `main.c`, document functions and FSM states with clean comments, and test edge cases on the physical hardware fixture.
 
   **Tasks:**
-  - [ ] In `main.c`, construct the main infinite loop `for (;;)` dispatching non-blocking tasks (`Task_Buttons()`, `Task_Potentiometer()`, `Task_CoffeeMachine()`, `Task_Display()`).
-  - [ ] Test drain timing grace periods for `SV4` and `SV5` on the EDU-mod fixture to prevent `ERR` fault LED activation (overflow in reservoir or mixer).
-  - [ ] Review code readability, function header comments, and documentation according to assignment requirements.
+  - [x] In `main.c`, construct the main infinite loop `for (;;)` dispatching non-blocking tasks (`Task_Buttons()`, `Task_Potentiometer()`, `Task_CoffeeMachine()`, `Task_Display()`).
+  - [x] Test drain timing grace periods for `SV4` and `SV5` on the EDU-mod fixture to prevent `ERR` fault LED activation (overflow in reservoir or mixer).
+  - [x] Review code readability, function header comments, and documentation according to assignment requirements.

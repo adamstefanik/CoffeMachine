@@ -69,7 +69,7 @@ CoffeMachine/
 ├── Sources/                            # Application and peripheral driver source files
 │   ├── coffee_machine.c / .h           # Beverage preparation finite state machine (FSM)
 │   ├── coffee_ui.c / .h                # Non-flickering LCD user interface and setup wizard
-│   ├── drv_adc.c / .h                  # Potentiometer ADC0 driver and value scaling
+│   ├── drv_adc.c / .h                  # Potentiometer ADC0 driver, hysteresis task, and value scaling
 │   ├── drv_gpio.c / .h                 # GPIO configuration for kit LEDs and buttons
 │   ├── drv_kava.c / .h                 # EDU-mod driver (valves SV1–SV5, mixer, sensors H1–H8)
 │   ├── drv_lcd.c / .h                  # 4x20 character LCD driver and progress bar rendering

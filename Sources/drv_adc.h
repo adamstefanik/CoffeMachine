@@ -24,6 +24,12 @@ extern "C" {
 void ADC_Init(void);
 
 /**
+ * @brief Neblokujici periodicka uloha pro snimani, digitalni filtraci a aktualizaci polohy potenciometru (~20 ms).
+ *        Vzorkuje ADC0 a aktualizuje urovne pro kavu (1 az 3) a cukr (0 az 3) s hysterezi proti zakmitavani.
+ */
+void Task_Potentiometer(void);
+
+/**
  * @brief Nastavi, ktery kanal ADC ma byt primarne pouzit pro potenciometr (napr. ADC_CH_PTB0 nebo ADC_CH_PTB1).
  * @param channel Cislo kanalu ADC0 (napr. 8 nebo 9).
  */
